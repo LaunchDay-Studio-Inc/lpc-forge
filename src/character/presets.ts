@@ -7,12 +7,12 @@ import type { CharacterPreset } from './types.js';
 export const PRESETS: Record<string, CharacterPreset> = {
   warrior: {
     name: 'Warrior',
-    description: 'Plate armor, longsword, brown hair',
+    description: 'Plate armor, longsword, chestnut hair',
     spec: {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'light' },
-        { category: 'hair', subcategory: 'hair_plain', variant: 'brown' },
+        { category: 'hair', subcategory: 'hair_plain', variant: 'chestnut' },
         { category: 'torso', subcategory: 'torso_armour_plate', variant: 'steel' },
         { category: 'legs', subcategory: 'legs_armour', variant: 'steel' },
         { category: 'feet', subcategory: 'feet_armour', variant: 'steel' },
@@ -21,13 +21,13 @@ export const PRESETS: Record<string, CharacterPreset> = {
   },
   mage: {
     name: 'Mage',
-    description: 'Blue robe, white hair',
+    description: 'Blue longsleeve, white hair',
     spec: {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'light' },
         { category: 'hair', subcategory: 'hair_plain', variant: 'white' },
-        { category: 'torso', subcategory: 'torso_robe', variant: 'blue' },
+        { category: 'torso', subcategory: 'torso_clothes_longsleeve', variant: 'blue' },
       ],
     },
   },
@@ -47,13 +47,13 @@ export const PRESETS: Record<string, CharacterPreset> = {
   },
   ranger: {
     name: 'Ranger',
-    description: 'Green tunic, bow, brown hair',
+    description: 'Green tunic, bow, chestnut hair',
     spec: {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'bronze' },
         { category: 'hair', subcategory: 'hair_plain', variant: 'chestnut' },
-        { category: 'torso', subcategory: 'torso_shirt', variant: 'green' },
+        { category: 'torso', subcategory: 'torso_clothes_shortsleeve', variant: 'green' },
         { category: 'legs', subcategory: 'legs_pants', variant: 'brown' },
         { category: 'feet', subcategory: 'feet_boots', variant: 'brown' },
       ],
@@ -67,7 +67,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       layers: [
         { category: 'body', subcategory: 'body', variant: 'amber' },
         { category: 'hair', subcategory: 'hair_plain', variant: 'blonde' },
-        { category: 'torso', subcategory: 'torso_shirt', variant: 'white' },
+        { category: 'torso', subcategory: 'torso_clothes_shortsleeve', variant: 'white' },
         { category: 'legs', subcategory: 'legs_pants', variant: 'brown' },
         { category: 'feet', subcategory: 'feet_shoes', variant: 'brown' },
       ],

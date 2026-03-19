@@ -219,6 +219,8 @@ export async function scaffoldGodotProject(
 ; It's best edited using the editor UI and not directly,
 ; but it can also be edited because it's a plain text file.
 
+config_version=5
+
 [application]
 
 config/name="${projectName}"
