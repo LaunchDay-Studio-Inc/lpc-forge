@@ -416,4 +416,56 @@ program
     }
   });
 
+// === SFX COMMAND ===
+program
+  .command('sfx')
+  .description('Generate 8-bit sound effects for your game')
+  .option('-o, --output <path>', 'Output directory', './output/audio')
+  .option('-c, --category <category>', 'Only generate sounds from this category')
+  .option('--list', 'List all available SFX presets')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { getPresetsByCategory } = await import('./audio/index.js');
+      const grouped = getPresetsByCategory();
+
+      for (const [category, presets] of Object.entries(grouped)) {
+        console.log(chalk.bold.cyan(`\n${category.toUpperCase()} (${presets.length})`));
+        for (const preset of presets) {
+          console.log(`  ${chalk.green(preset.name.toLowerCase().replaceAll(/\s+/g, '_'))}: ${preset.description}`);
+        }
+      }
+      const total = Object.values(grouped).reduce((sum, p) => sum + p.length, 0);
+      console.log(chalk.bold(`\n${total} sound effects available`));
+      return;
+    }
+
+    const spinner = ora('Generating sound effects...').start();
+
+    try {
+      const { generateAllSfx } = await import('./audio/index.js');
+      const results = await generateAllSfx(opts.output, {
+        category: opts.category,
+      });
+
+      spinner.succeed(chalk.green(`Generated ${results.length} sound effects → ${opts.output}/sfx/`));
+
+      // Group results by category for summary
+      const byCategory: Record<string, number> = {};
+      for (const r of results) {
+        byCategory[r.category] = (byCategory[r.category] || 0) + 1;
+      }
+      for (const [cat, count] of Object.entries(byCategory)) {
+        console.log(`  ${chalk.cyan(cat)}: ${count} sounds`);
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('SFX generation failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
 program.parse();

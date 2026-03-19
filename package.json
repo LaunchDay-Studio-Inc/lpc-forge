@@ -13,10 +13,22 @@
     "lint": "eslint src/"
   },
   "keywords": [
-    "lpc", "liberated-pixel-cup", "spritesheet", "character-generator",
-    "godot", "godot-4", "gamedev", "pixel-art", "rpg", "2d",
-    "procedural-generation", "dungeon-generator", "tilemap",
-    "indie-game", "game-assets", "sprite-compositor"
+    "lpc",
+    "liberated-pixel-cup",
+    "spritesheet",
+    "character-generator",
+    "godot",
+    "godot-4",
+    "gamedev",
+    "pixel-art",
+    "rpg",
+    "2d",
+    "procedural-generation",
+    "dungeon-generator",
+    "tilemap",
+    "indie-game",
+    "game-assets",
+    "sprite-compositor"
   ],
   "author": "LaunchDay Studio <info@launchdaystudio.com> (https://blueth.online)",
   "license": "GPL-3.0-or-later",
@@ -32,17 +44,18 @@
     "node": ">=22"
   },
   "dependencies": {
-    "sharp": "^0.34.0",
-    "commander": "^13.0.0",
     "chalk": "^5.4.0",
+    "commander": "^13.0.0",
+    "glob": "^11.0.0",
+    "jsfxr": "^1.4.0",
     "ora": "^8.2.0",
-    "glob": "^11.0.0"
+    "sharp": "^0.34.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
-    "tsx": "^4.19.0",
-    "vitest": "^3.0.0",
     "@types/node": "^22.0.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
   }
 }
