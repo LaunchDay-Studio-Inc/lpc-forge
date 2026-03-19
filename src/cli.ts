@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { resolve, join } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import type { IconEntry } from './ui/types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
@@ -463,6 +464,170 @@ program
       }
     } catch (err) {
       spinner.fail(chalk.red('SFX generation failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
+// === UI KIT COMMAND ===
+program
+  .command('ui')
+  .description('Generate pixel-art UI kit (panels, buttons, bars, slots, cursors)')
+  .option('-o, --output <path>', 'Output directory', './output/ui')
+  .option('-t, --theme <name>', 'Theme name (medieval, dark, nature, ice, fire, royal)', 'medieval')
+  .option('--all-themes', 'Generate for ALL themes')
+  .option('--list-themes', 'List available themes')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.listThemes) {
+      const { listThemes, UI_THEMES } = await import('./ui/index.js');
+      console.log(chalk.bold.cyan('\nAvailable UI Themes:\n'));
+      for (const name of listThemes()) {
+        const t = UI_THEMES[name];
+        console.log(`  ${chalk.green(name)}: ${t.name}`);
+      }
+      return;
+    }
+
+    const spinner = ora('Generating UI kit...').start();
+
+    try {
+      const { generateUIKit, listThemes } = await import('./ui/index.js');
+
+      if (opts.allThemes) {
+        const themes = listThemes();
+        let total = 0;
+        for (const theme of themes) {
+          const result = await generateUIKit(opts.output, theme);
+          total += result.totalAssets;
+          spinner.text = `Generated ${theme} theme (${result.totalAssets} assets)...`;
+        }
+        spinner.succeed(chalk.green(`Generated ${total} UI assets across ${themes.length} themes → ${opts.output}/ui/`));
+      } else {
+        const result = await generateUIKit(opts.output, opts.theme);
+        spinner.succeed(chalk.green(`Generated ${result.totalAssets} UI assets (${opts.theme}) → ${opts.output}/ui/`));
+        console.log(`  ${chalk.cyan('Panels')}: ${result.panels.length}`);
+        console.log(`  ${chalk.cyan('Buttons')}: ${result.buttons.length}`);
+        console.log(`  ${chalk.cyan('Frames')}: ${result.frames.length}`);
+        console.log(`  ${chalk.cyan('Bars')}: ${result.bars.length}`);
+        console.log(`  ${chalk.cyan('Slots')}: ${result.slots.length}`);
+        console.log(`  ${chalk.cyan('Cursors')}: ${result.cursors.length}`);
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('UI generation failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
+// === PORTRAIT COMMAND ===
+program
+  .command('portrait')
+  .description('Extract character portrait from a composited spritesheet')
+  .requiredOption('-i, --input <path>', 'Path to character spritesheet PNG')
+  .option('-n, --name <name>', 'Character name for output files', 'character')
+  .option('-o, --output <path>', 'Output directory', './output')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+    const { readFile } = await import('node:fs/promises');
+
+    const spinner = ora('Extracting portrait...').start();
+
+    try {
+      const { extractPortrait } = await import('./ui/portrait.js');
+      const sheetBuffer = await readFile(resolve(opts.input));
+      const results = await extractPortrait(sheetBuffer, opts.output, opts.name);
+
+      spinner.succeed(chalk.green(`Extracted ${results.length} portrait sizes → ${opts.output}/portraits/`));
+      for (const r of results) {
+        console.log(`  ${chalk.cyan(r.size + 'px')}: ${r.path}`);
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('Portrait extraction failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
+// === PROPS COMMAND ===
+program
+  .command('props')
+  .description('Generate pixel-art prop sprites (chests, barrels, torches, etc.)')
+  .option('-o, --output <path>', 'Output directory', './output')
+  .option('--list', 'List available props')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { listProps } = await import('./ui/props.js');
+      const props = listProps();
+      console.log(chalk.bold.cyan(`\nAvailable Props (${props.length}):\n`));
+      for (const p of props) {
+        console.log(`  ${chalk.green(p.name)} (${p.width}x${p.height}) — ${p.description}`);
+      }
+      return;
+    }
+
+    const spinner = ora('Generating props...').start();
+
+    try {
+      const { generateAllProps } = await import('./ui/props.js');
+      const paths = await generateAllProps(opts.output);
+      spinner.succeed(chalk.green(`Generated ${paths.length} props → ${opts.output}/props/`));
+    } catch (err) {
+      spinner.fail(chalk.red('Props generation failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
+// === ICONS COMMAND ===
+program
+  .command('icons')
+  .description('Generate pixel-art item icons + atlas')
+  .option('-o, --output <path>', 'Output directory', './output')
+  .option('--list', 'List available icons')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { listIcons } = await import('./ui/icons.js');
+      const icons = listIcons();
+
+      const byCategory: Record<string, IconEntry[]> = {};
+      for (const i of icons) {
+        if (!byCategory[i.category]) byCategory[i.category] = [];
+        byCategory[i.category].push(i);
+      }
+
+      for (const [cat, items] of Object.entries(byCategory)) {
+        console.log(chalk.bold.cyan(`\n${cat.toUpperCase()} (${items.length})`));
+        for (const i of items) {
+          console.log(`  ${chalk.green(i.name)}: ${i.description}`);
+        }
+      }
+      console.log(chalk.bold(`\n${icons.length} icons available`));
+      return;
+    }
+
+    const spinner = ora('Generating icons...').start();
+
+    try {
+      const { generateAllIcons } = await import('./ui/icons.js');
+      const { icons, atlas } = await generateAllIcons(opts.output);
+      spinner.succeed(chalk.green(`Generated ${icons.length} icons + atlas → ${opts.output}/icons/`));
+      console.log(`  ${chalk.cyan('Atlas')}: ${atlas}`);
+    } catch (err) {
+      spinner.fail(chalk.red('Icon generation failed'));
       console.error(err);
       process.exit(1);
     }
