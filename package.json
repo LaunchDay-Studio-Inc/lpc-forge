@@ -6,6 +6,22 @@
   "bin": {
     "lpc-forge": "./dist/cli.js"
   },
+  "files": [
+    "dist/cli.js",
+    "dist/cli.d.ts",
+    "dist/character/**",
+    "dist/map/**",
+    "dist/export/**",
+    "dist/tileset/**",
+    "dist/utils/**",
+    "dist/license.js",
+    "dist/license.d.ts",
+    "assets/**",
+    "README.md",
+    "LICENSE",
+    "CREDITS.csv",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",

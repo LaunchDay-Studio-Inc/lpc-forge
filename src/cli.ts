@@ -349,15 +349,8 @@ program
 
     // Premium gate check
     if (isFull) {
-      const { hasValidLicense } = await import('./license.js');
-      const licensed = await hasValidLicense();
-      if (!licensed) {
-        console.log(chalk.yellow('\n⚠ Premium features require a license key.\n'));
-        console.log(chalk.white('  Purchase LPC Forge Premium at: ') + chalk.cyan.underline('https://blueth.online/plugins/lpc-forge'));
-        console.log(chalk.white('  Then activate with: ') + chalk.green('lpc-forge activate <your-license-key>'));
-        console.log(chalk.gray('\n  Free tier: lpc-forge init my-game (without --full)\n'));
-        process.exit(1);
-      }
+      const { requireLicense } = await import('./license.js');
+      await requireLicense('init --full');
     }
 
     try {
@@ -602,9 +595,13 @@ program
       const info = await getLicenseInfo();
       if (info && info.valid) {
         console.log(chalk.green('✅ Premium license active'));
-        console.log(chalk.gray(`  Key:       ${info.key.slice(0, 8)}...`));
-        console.log(chalk.gray(`  Email:     ${info.email}`));
-        console.log(chalk.gray(`  Activated: ${info.activatedAt}`));
+        console.log(chalk.gray(`  Key:          ${info.key}`));
+        console.log(chalk.gray(`  Email:        ${info.email}`));
+        console.log(chalk.gray(`  Activated:    ${info.activatedAt}`));
+        console.log(chalk.gray(`  Last Verified: ${info.lastVerifiedAt}`));
+      } else if (info && !info.valid) {
+        console.log(chalk.red('❌ License invalid or tampered'));
+        console.log(chalk.gray('  Re-activate: lpc-forge activate <key>'));
       } else {
         console.log(chalk.yellow('No active license.'));
         console.log(chalk.gray('  Purchase at: https://blueth.online/plugins/lpc-forge'));
@@ -656,6 +653,10 @@ program
       return;
     }
 
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('lighting');
+
     const spinner = ora('Generating lighting presets...').start();
 
     try {
@@ -705,6 +706,10 @@ program
       }
       return;
     }
+
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('particles');
 
     const spinner = ora('Generating particle effects...').start();
 
@@ -760,6 +765,10 @@ program
       return;
     }
 
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('sfx');
+
     const spinner = ora('Generating sound effects...').start();
 
     try {
@@ -808,6 +817,10 @@ program
       return;
     }
 
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('ui');
+
     const spinner = ora('Generating UI kit...').start();
 
     try {
@@ -850,6 +863,11 @@ program
   .action(async (opts: any) => {
     const chalk = (await import('chalk')).default;
     const ora = (await import('ora')).default;
+
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('portrait');
+
     const { readFile } = await import('node:fs/promises');
 
     const spinner = ora('Extracting portrait...').start();
@@ -890,6 +908,10 @@ program
       }
       return;
     }
+
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('props');
 
     const spinner = ora('Generating props...').start();
 
@@ -935,6 +957,10 @@ program
       return;
     }
 
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('icons');
+
     const spinner = ora('Generating icons...').start();
 
     try {
@@ -973,6 +999,10 @@ program
       }
       return;
     }
+
+    // Premium gate
+    const { requireLicense } = await import('./license.js');
+    await requireLicense('systems');
 
     const spinner = ora('Generating game systems...').start();
 
