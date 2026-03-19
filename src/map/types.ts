@@ -23,6 +23,13 @@ export interface OverworldConfig extends MapConfig {
   temperature?: number;
 }
 
+export interface PointOfInterest {
+  x: number;
+  y: number;
+  type: 'spawn' | 'treasure' | 'npc' | 'exit' | 'entrance' | 'boss';
+  label?: string;
+}
+
 export enum TileType {
   VOID = 0,
   FLOOR = 1,
@@ -53,6 +60,7 @@ export interface GeneratedMap {
   tiles: TileType[][];
   rooms: Room[];
   seed: string | number;
+  pois: PointOfInterest[];
   spawnPoint?: { x: number; y: number };
   exitPoint?: { x: number; y: number };
 }

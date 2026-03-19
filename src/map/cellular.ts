@@ -111,7 +111,7 @@ export function generateCave(config: CellularConfig): GeneratedMap {
     };
   });
 
-  return { width, height, tiles, rooms, seed, spawnPoint, exitPoint };
+  return { width, height, tiles, rooms, seed, pois: [], spawnPoint, exitPoint };
 }
 
 function step(

@@ -3,17 +3,23 @@ import { join } from 'node:path';
 import { sliceCharacter } from '../character/slicer.js';
 import { ANIMATIONS, DIRECTIONS, FRAME_SIZE } from '../character/types.js';
 import type { GeneratedMap } from '../map/types.js';
-import { tileTypeToName } from '../tileset/registry.js';
+
+export interface CharacterExportOptions {
+  animationSpeed?: number;
+  resPath?: string;
+  isPlayer?: boolean;
+}
 
 /** Export a character spritesheet as Godot 4.6 resources */
 export async function exportCharacterToGodot(
   sheetBuffer: Buffer,
   outputDir: string,
   characterName: string,
-  options?: { animationSpeed?: number; resPath?: string },
+  options?: CharacterExportOptions,
 ): Promise<void> {
   const speed = options?.animationSpeed ?? 10;
   const resBase = options?.resPath ?? `res://sprites/${characterName}`;
+  const isPlayer = options?.isPlayer ?? true;
 
   const spritesDir = join(outputDir, 'sprites', characterName);
   await mkdir(spritesDir, { recursive: true });
@@ -28,8 +34,8 @@ export async function exportCharacterToGodot(
   const tresContent = generateSpriteFramesTres(characterName, resBase, speed);
   await writeFile(join(spritesDir, `${characterName}.tres`), tresContent);
 
-  // Generate .tscn scene
-  const tscnContent = generateCharacterTscn(characterName, resBase);
+  // Generate .tscn scene with hitbox/hurtbox/timers
+  const tscnContent = generateCharacterTscn(characterName, resBase, isPlayer);
   await writeFile(join(outputDir, `${characterName}.tscn`), tscnContent);
 }
 
@@ -97,26 +103,88 @@ function generateSpriteFramesTres(
   return lines.join('\n');
 }
 
-function generateCharacterTscn(name: string, resBase: string): string {
-  return `[gd_scene load_steps=3 format=3]
+function generateCharacterTscn(name: string, resBase: string, isPlayer: boolean): string {
+  const loadSteps = isPlayer ? 6 : 4;
+  const lines: string[] = [];
+  lines.push(`[gd_scene load_steps=${loadSteps} format=3]`);
+  lines.push('');
+  lines.push(`[ext_resource type="SpriteFrames" path="${resBase}/${name}.tres" id="1"]`);
+  if (isPlayer) {
+    lines.push(`[ext_resource type="Script" path="res://scripts/player.gd" id="2"]`);
+  }
+  lines.push('');
 
-[ext_resource type="SpriteFrames" path="${resBase}/${name}.tres" id="1"]
+  // CollisionShape2D for body
+  lines.push(`[sub_resource type="RectangleShape2D" id="1"]`);
+  lines.push(`size = Vector2(${FRAME_SIZE / 2}, ${FRAME_SIZE / 2})`);
+  lines.push('');
 
-[sub_resource type="RectangleShape2D" id="1"]
-size = Vector2(32, 32)
+  // Hitbox shape
+  lines.push(`[sub_resource type="RectangleShape2D" id="2"]`);
+  lines.push(`size = Vector2(${FRAME_SIZE / 2}, ${FRAME_SIZE / 2})`);
+  lines.push('');
 
-[node name="${capitalize(name)}" type="CharacterBody2D"]
+  // Hurtbox shape
+  lines.push(`[sub_resource type="RectangleShape2D" id="3"]`);
+  lines.push(`size = Vector2(24, 32)`);
+  lines.push('');
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-sprite_frames = ExtResource("1")
-animation = &"idle_down"
-autoplay = "idle_down"
-offset = Vector2(0, -16)
+  // Root node
+  lines.push(`[node name="${capitalize(name)}" type="CharacterBody2D"]`);
+  if (isPlayer) {
+    lines.push(`script = ExtResource("2")`);
+  }
+  lines.push('');
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("1")
-position = Vector2(0, 8)
-`;
+  // Sprite
+  lines.push(`[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]`);
+  lines.push(`sprite_frames = ExtResource("1")`);
+  lines.push(`animation = &"idle_down"`);
+  lines.push(`autoplay = "idle_down"`);
+  lines.push(`offset = Vector2(0, -16)`);
+  lines.push('');
+
+  // Body collision
+  lines.push(`[node name="CollisionShape2D" type="CollisionShape2D" parent="."]`);
+  lines.push(`shape = SubResource("1")`);
+  lines.push(`position = Vector2(0, 8)`);
+  lines.push('');
+
+  // Hitbox Area2D
+  lines.push(`[node name="Hitbox" type="Area2D" parent="."]`);
+  lines.push(`collision_layer = 2`);
+  lines.push(`collision_mask = 0`);
+  lines.push(`monitorable = true`);
+  lines.push(`monitoring = false`);
+  lines.push('');
+  lines.push(`[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]`);
+  lines.push(`shape = SubResource("2")`);
+  lines.push(`position = Vector2(16, 0)`);
+  lines.push(`disabled = true`);
+  lines.push('');
+
+  // Hurtbox Area2D
+  lines.push(`[node name="Hurtbox" type="Area2D" parent="."]`);
+  lines.push(`collision_layer = 0`);
+  lines.push(`collision_mask = 2`);
+  lines.push(`monitorable = false`);
+  lines.push(`monitoring = true`);
+  lines.push('');
+  lines.push(`[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]`);
+  lines.push(`shape = SubResource("3")`);
+  lines.push('');
+
+  // Timers
+  lines.push(`[node name="AttackTimer" type="Timer" parent="."]`);
+  lines.push(`wait_time = 0.4`);
+  lines.push(`one_shot = true`);
+  lines.push('');
+  lines.push(`[node name="HurtTimer" type="Timer" parent="."]`);
+  lines.push(`wait_time = 0.5`);
+  lines.push(`one_shot = true`);
+  lines.push('');
+
+  return lines.join('\n');
 }
 
 /** Export a generated map as Godot 4.6 TileMapLayer scene */
@@ -140,68 +208,80 @@ export async function exportMapToGodot(
 }
 
 function generateTilesetTres(tileSize: number): string {
-  // Define tile IDs matching TileType enum
-  const tiles = [
-    { id: 0, name: 'void', color: '000000' },
-    { id: 1, name: 'floor', color: 'b4966e' },
-    { id: 2, name: 'wall', color: '50505a' },
-    { id: 3, name: 'door', color: '8c6440' },
-    { id: 4, name: 'corridor', color: 'a08764' },
-    { id: 5, name: 'water', color: '3c78be' },
-    { id: 6, name: 'grass', color: '50a03c' },
-    { id: 7, name: 'tree', color: '1e641e' },
-    { id: 8, name: 'path', color: 'beaa82' },
-    { id: 9, name: 'sand', color: 'dcc88c' },
-    { id: 10, name: 'stone', color: '8c8c96' },
-    { id: 11, name: 'bridge', color: '966e46' },
-  ];
-
   const lines = [`[gd_resource type="TileSet" format=3]`, '', `[resource]`];
   lines.push(`tile_size = Vector2i(${tileSize}, ${tileSize})`);
-
-  // For a simple colored tileset, we'll define it to be used with the map
-  // Users can replace with actual sprite-based tilesets
   return lines.join('\n');
 }
 
 function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): string {
   const lines: string[] = [];
+
+  // Count sub resources needed: 1 for tileset ref + 1 collision shape per wall group
   lines.push(`[gd_scene load_steps=2 format=3]`);
   lines.push('');
   lines.push(`[ext_resource type="TileSet" path="res://${mapName}_tileset.tres" id="1"]`);
   lines.push('');
+
+  // Collision shape for walls
+  lines.push(`[sub_resource type="RectangleShape2D" id="1"]`);
+  lines.push(`size = Vector2(${tileSize}, ${tileSize})`);
+  lines.push('');
+
   lines.push(`[node name="${capitalize(mapName)}" type="Node2D"]`);
   lines.push('');
 
-  // Ground layer
+  // Ground TileMapLayer
   lines.push(`[node name="Ground" type="TileMapLayer" parent="."]`);
   lines.push(`tile_set = ExtResource("1")`);
+  lines.push('');
 
-  // Encode tile data - Godot 4 uses PackedInt32Array format
-  // Each tile is encoded as: x | (y << 16), source_id, atlas_coords, alternative_tile
-  const tileData: number[] = [];
+  // Wall collision StaticBody2D with individual CollisionShape2Ds
+  lines.push(`[node name="Walls" type="StaticBody2D" parent="."]`);
+  lines.push(`collision_layer = 1`);
+  lines.push(`collision_mask = 0`);
+  lines.push('');
+
+  let wallIdx = 0;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
-      const tileType = map.tiles[y][x];
-      // Store coordinates and tile type for Godot
-      tileData.push(x, y, 0); // x, y, source
-      tileData.push(tileType, 0, 0); // atlas_x, atlas_y, alternative
+      const t = map.tiles[y][x];
+      // TileType.WALL = 2, TileType.TREE = 7
+      if (t === 2 || t === 7) {
+        lines.push(`[node name="Wall${wallIdx}" type="CollisionShape2D" parent="Walls"]`);
+        lines.push(`position = Vector2(${x * tileSize + tileSize / 2}, ${y * tileSize + tileSize / 2})`);
+        lines.push(`shape = SubResource("1")`);
+        lines.push('');
+        wallIdx++;
+      }
     }
   }
 
-  lines.push('');
-
-  // Add markers for spawn and exit
+  // Spawn and exit markers
   if (map.spawnPoint) {
     lines.push(`[node name="SpawnPoint" type="Marker2D" parent="."]`);
-    lines.push(`position = Vector2(${map.spawnPoint.x * tileSize}, ${map.spawnPoint.y * tileSize})`);
+    lines.push(`position = Vector2(${map.spawnPoint.x * tileSize + tileSize / 2}, ${map.spawnPoint.y * tileSize + tileSize / 2})`);
     lines.push('');
   }
 
   if (map.exitPoint) {
     lines.push(`[node name="ExitPoint" type="Marker2D" parent="."]`);
-    lines.push(`position = Vector2(${map.exitPoint.x * tileSize}, ${map.exitPoint.y * tileSize})`);
+    lines.push(`position = Vector2(${map.exitPoint.x * tileSize + tileSize / 2}, ${map.exitPoint.y * tileSize + tileSize / 2})`);
     lines.push('');
+  }
+
+  // POI markers
+  if (map.pois) {
+    for (let i = 0; i < map.pois.length; i++) {
+      const poi = map.pois[i];
+      const nodeName = `POI_${poi.type}_${i}`;
+      lines.push(`[node name="${nodeName}" type="Marker2D" parent="."]`);
+      lines.push(`position = Vector2(${poi.x * tileSize + tileSize / 2}, ${poi.y * tileSize + tileSize / 2})`);
+      const meta: Record<string, string> = { poi_type: poi.type };
+      if (poi.label) meta['poi_label'] = poi.label;
+      lines.push(`metadata/poi_type = "${poi.type}"`);
+      if (poi.label) lines.push(`metadata/poi_label = "${poi.label}"`);
+      lines.push('');
+    }
   }
 
   return lines.join('\n');
@@ -211,7 +291,11 @@ function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): 
 export async function scaffoldGodotProject(
   outputDir: string,
   projectName: string,
+  options?: { characterName?: string; mapName?: string },
 ): Promise<void> {
+  const charName = options?.characterName ?? 'player';
+  const mapName = options?.mapName ?? 'dungeon';
+
   await mkdir(outputDir, { recursive: true });
 
   // project.godot
@@ -234,6 +318,29 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
+[input]
+
+move_up={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":87,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
+move_down={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":83,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
+move_left={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":65,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
+move_right={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":68,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
+attack={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":32,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
@@ -241,47 +348,184 @@ textures/canvas_textures/default_texture_filter=0
 
   await writeFile(join(outputDir, 'project.godot'), projectGodot);
 
-  // Main scene
-  const mainTscn = `[gd_scene format=3]
+  // Main scene — instances map + player at spawn, adds Camera2D and HUD
+  const mainTscn = `[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://${charName}.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://${mapName}.tscn" id="2"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="3"]
 
 [node name="Main" type="Node2D"]
+
+[node name="Map" parent="." instance=ExtResource("2")]
+
+[node name="Player" parent="." instance=ExtResource("1")]
+position = Vector2(400, 400)
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(2, 2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HUDControl" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("3")
+
+[node name="HealthBar" type="ProgressBar" parent="HUD/HUDControl"]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 216.0
+offset_bottom = 32.0
+value = 100.0
+show_percentage = false
 `;
   await writeFile(join(outputDir, 'main.tscn'), mainTscn);
 
-  // Player script
+  // Scripts directory
   const scriptsDir = join(outputDir, 'scripts');
   await mkdir(scriptsDir, { recursive: true });
 
+  // State machine player script
   const playerGd = `extends CharacterBody2D
 
-const SPEED = 200.0
+signal health_changed(new_health: int, max_health: int)
+signal died
+
+enum State { IDLE, WALK, ATTACK, HURT, DEATH }
+
+const SPEED := 200.0
+const MAX_HEALTH := 100
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var attack_timer: Timer = $AttackTimer
+@onready var hurt_timer: Timer = $HurtTimer
+@onready var hitbox: Area2D = $Hitbox
 
+var state: State = State.IDLE
 var direction := "down"
-var is_moving := false
+var health: int = MAX_HEALTH
 
-func _physics_process(delta: float) -> void:
-\tvar input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-\tvelocity = input_dir * SPEED
+func _ready() -> void:
+\tattack_timer.timeout.connect(_on_attack_finished)
+\thurt_timer.timeout.connect(_on_hurt_finished)
+\thealth_changed.emit(health, MAX_HEALTH)
 
+func _physics_process(_delta: float) -> void:
+\tmatch state:
+\t\tState.IDLE:
+\t\t\t_process_idle()
+\t\tState.WALK:
+\t\t\t_process_walk()
+\t\tState.ATTACK:
+\t\t\tpass
+\t\tState.HURT:
+\t\t\tpass
+\t\tState.DEATH:
+\t\t\tpass
+
+func _process_idle() -> void:
+\tvar input_dir := _get_input()
 \tif input_dir != Vector2.ZERO:
-\t\tis_moving = true
-\t\tif abs(input_dir.x) > abs(input_dir.y):
-\t\t\tdirection = "right" if input_dir.x > 0 else "left"
-\t\telse:
-\t\t\tdirection = "down" if input_dir.y > 0 else "up"
-\telse:
-\t\tis_moving = false
+\t\t_set_direction(input_dir)
+\t\t_change_state(State.WALK)
+\t\treturn
+\tif Input.is_action_just_pressed("attack"):
+\t\t_change_state(State.ATTACK)
+\t\treturn
+\tsprite.play("idle_" + direction)
 
-\tvar anim_name = ("walk_" if is_moving else "idle_") + direction
-\tif sprite.sprite_frames.has_animation(anim_name):
-\t\tsprite.play(anim_name)
-
+func _process_walk() -> void:
+\tvar input_dir := _get_input()
+\tif input_dir == Vector2.ZERO:
+\t\t_change_state(State.IDLE)
+\t\treturn
+\tif Input.is_action_just_pressed("attack"):
+\t\t_change_state(State.ATTACK)
+\t\treturn
+\t_set_direction(input_dir)
+\tvelocity = input_dir * SPEED
+\tsprite.play("walk_" + direction)
 \tmove_and_slide()
-`;
 
+func _change_state(new_state: State) -> void:
+\tstate = new_state
+\tmatch new_state:
+\t\tState.ATTACK:
+\t\t\tvelocity = Vector2.ZERO
+\t\t\tvar anim := "slash_" + direction
+\t\t\tif sprite.sprite_frames.has_animation(anim):
+\t\t\t\tsprite.play(anim)
+\t\t\thitbox.get_child(0).disabled = false
+\t\t\tattack_timer.start()
+\t\tState.HURT:
+\t\t\tvelocity = Vector2.ZERO
+\t\t\tvar anim := "hurt"
+\t\t\tif sprite.sprite_frames.has_animation("hurt_down"):
+\t\t\t\tanim = "hurt_down"
+\t\t\tsprite.play(anim)
+\t\t\thurt_timer.start()
+\t\tState.DEATH:
+\t\t\tvelocity = Vector2.ZERO
+\t\t\tset_physics_process(false)
+\t\t\tdied.emit()
+\t\t_:
+\t\t\tpass
+
+func take_damage(amount: int) -> void:
+\tif state == State.DEATH or state == State.HURT:
+\t\treturn
+\thealth = max(0, health - amount)
+\thealth_changed.emit(health, MAX_HEALTH)
+\tif health <= 0:
+\t\t_change_state(State.DEATH)
+\telse:
+\t\t_change_state(State.HURT)
+
+func _on_attack_finished() -> void:
+\thitbox.get_child(0).disabled = true
+\t_change_state(State.IDLE)
+
+func _on_hurt_finished() -> void:
+\t_change_state(State.IDLE)
+
+func _get_input() -> Vector2:
+\treturn Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+
+func _set_direction(input_dir: Vector2) -> void:
+\tif abs(input_dir.x) > abs(input_dir.y):
+\t\tdirection = "right" if input_dir.x > 0 else "left"
+\telse:
+\t\tdirection = "down" if input_dir.y > 0 else "up"
+`;
   await writeFile(join(scriptsDir, 'player.gd'), playerGd);
+
+  // HUD script
+  const hudGd = `extends Control
+
+@onready var health_bar: ProgressBar = $HealthBar
+
+func _ready() -> void:
+\tvar player := _find_player()
+\tif player:
+\t\tplayer.health_changed.connect(_on_health_changed)
+
+func _on_health_changed(new_health: int, max_health: int) -> void:
+\thealth_bar.max_value = max_health
+\thealth_bar.value = new_health
+
+func _find_player() -> CharacterBody2D:
+\tvar parent := get_tree().current_scene
+\tif parent:
+\t\tvar player := parent.find_child("Player", true, false)
+\t\tif player is CharacterBody2D:
+\t\t\treturn player as CharacterBody2D
+\treturn null
+`;
+  await writeFile(join(scriptsDir, 'hud.gd'), hudGd);
 
   // Simple SVG icon
   const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">

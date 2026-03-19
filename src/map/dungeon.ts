@@ -1,5 +1,5 @@
 import { SeededRNG } from '../utils/rng.js';
-import type { DungeonConfig, GeneratedMap, Room, TileType } from './types.js';
+import type { DungeonConfig, GeneratedMap, Room, TileType, PointOfInterest } from './types.js';
 import { TileType as TT } from './types.js';
 
 const DEFAULT_ROOM_MIN = 5;
@@ -196,18 +196,61 @@ export function generateDungeon(config: DungeonConfig): GeneratedMap {
   const spawnRoom = rooms[0];
   const exitRoom = rooms[rooms.length - 1];
 
+  const spawnPoint = spawnRoom
+    ? { x: Math.floor(spawnRoom.x + spawnRoom.width / 2), y: Math.floor(spawnRoom.y + spawnRoom.height / 2) }
+    : undefined;
+  const exitPoint = exitRoom && exitRoom !== spawnRoom
+    ? { x: Math.floor(exitRoom.x + exitRoom.width / 2), y: Math.floor(exitRoom.y + exitRoom.height / 2) }
+    : undefined;
+
+  // Generate POIs
+  const pois: PointOfInterest[] = [];
+
+  if (spawnPoint) {
+    pois.push({ x: spawnPoint.x, y: spawnPoint.y, type: 'spawn', label: 'Player Spawn' });
+  }
+  if (exitPoint) {
+    pois.push({ x: exitPoint.x, y: exitPoint.y, type: 'exit', label: 'Exit' });
+  }
+
+  // Boss in last room if > 5 rooms
+  if (rooms.length > 5 && exitRoom) {
+    const bx = Math.floor(exitRoom.x + exitRoom.width / 2) + 1;
+    const by = Math.floor(exitRoom.y + exitRoom.height / 2) + 1;
+    if (bx > 0 && bx < width && by > 0 && by < height) {
+      pois.push({ x: bx, y: by, type: 'boss', label: 'Boss' });
+    }
+  }
+
+  // Treasure in 30% of rooms
+  for (let i = 1; i < rooms.length - 1; i++) {
+    if (rng.random() < 0.3) {
+      const room = rooms[i];
+      const tx = room.x + rng.randomInt(1, room.width - 2);
+      const ty = room.y + rng.randomInt(1, room.height - 2);
+      pois.push({ x: tx, y: ty, type: 'treasure', label: `Treasure ${i}` });
+    }
+  }
+
+  // NPC in 20% of rooms
+  for (let i = 1; i < rooms.length - 1; i++) {
+    if (rng.random() < 0.2) {
+      const room = rooms[i];
+      const nx = room.x + rng.randomInt(1, room.width - 2);
+      const ny = room.y + rng.randomInt(1, room.height - 2);
+      pois.push({ x: nx, y: ny, type: 'npc', label: `NPC ${i}` });
+    }
+  }
+
   return {
     width,
     height,
     tiles,
     rooms,
     seed,
-    spawnPoint: spawnRoom
-      ? { x: Math.floor(spawnRoom.x + spawnRoom.width / 2), y: Math.floor(spawnRoom.y + spawnRoom.height / 2) }
-      : undefined,
-    exitPoint: exitRoom && exitRoom !== spawnRoom
-      ? { x: Math.floor(exitRoom.x + exitRoom.width / 2), y: Math.floor(exitRoom.y + exitRoom.height / 2) }
-      : undefined,
+    pois,
+    spawnPoint,
+    exitPoint,
   };
 }
 

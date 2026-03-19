@@ -1,0 +1,11 @@
+{
+  "characters": [
+    { "name": "hero", "preset": "warrior", "slice": true, "godot": true },
+    { "name": "companion", "preset": "mage", "slice": true, "godot": true },
+    { "name": "thief", "preset": "rogue", "slice": true, "godot": true },
+    { "name": "healer", "preset": "healer", "slice": true, "godot": true },
+    { "name": "npc-merchant", "preset": "merchant" },
+    { "name": "npc-guard", "preset": "guard" },
+    { "name": "enemy-skeleton", "preset": "skeleton" }
+  ]
+}

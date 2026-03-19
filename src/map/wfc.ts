@@ -107,6 +107,7 @@ export function generateWFC(config: WFCConfig): GeneratedMap {
         tiles: result,
         rooms: [],
         seed,
+        pois: [],
       };
     }
   }
@@ -115,7 +116,7 @@ export function generateWFC(config: WFCConfig): GeneratedMap {
   const fallback: TileType[][] = Array.from({ length: height }, () =>
     Array(width).fill(TT.GRASS),
   );
-  return { width, height, tiles: fallback, rooms: [], seed };
+  return { width, height, tiles: fallback, rooms: [], seed, pois: [] };
 }
 
 function tryCollapse(

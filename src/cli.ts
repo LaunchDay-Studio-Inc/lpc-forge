@@ -116,6 +116,35 @@ program
     }
   });
 
+// === BATCH COMMAND ===
+program
+  .command('batch')
+  .description('Generate multiple characters from a JSON config')
+  .argument('<config>', 'Path to batch config JSON')
+  .option('-o, --output <path>', 'Output directory', './output/batch')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (configPath: string, opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+    const { runBatch } = await import('./character/batch.js');
+
+    const spinner = ora('Running batch generation...').start();
+    const results = await runBatch(resolve(configPath), REPO_ROOT, resolve(opts.output));
+
+    const succeeded = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    spinner.succeed(`Batch complete: ${succeeded} succeeded, ${failed} failed`);
+
+    for (const r of results) {
+      if (r.success) {
+        console.log(chalk.green(`  ✓ ${r.name}`));
+      } else {
+        console.log(chalk.red(`  ✗ ${r.name}: ${r.error}`));
+      }
+    }
+  });
+
 // === LIST COMMAND ===
 program
   .command('list')
@@ -164,13 +193,15 @@ program
 program
   .command('map')
   .description('Generate a procedural map')
-  .argument('<type>', 'Map type (dungeon, cave, overworld, wfc)')
+  .argument('<type>', 'Map type (dungeon, cave, overworld, wfc, town, multifloor)')
   .option('-W, --width <n>', 'Map width in tiles', '50')
   .option('-H, --height <n>', 'Map height in tiles', '50')
   .option('-s, --seed <seed>', 'Random seed')
   .option('--rooms <n>', 'Number of rooms (dungeon only)', '12')
   .option('--room-min <n>', 'Minimum room size', '5')
   .option('--room-max <n>', 'Maximum room size', '15')
+  .option('--buildings <n>', 'Number of buildings (town only)', '6')
+  .option('--floors <n>', 'Number of floors (multifloor only)', '3')
   .option('-o, --output <path>', 'Output path', './output/map')
   .option('--render', 'Render visual PNG preview', true)
   .option('--godot', 'Export as Godot 4 TileMap', false)
@@ -215,8 +246,48 @@ program
           map = generateWFC({ width, height, seed });
           break;
         }
+        case 'town': {
+          const { generateTown } = await import('./map/town.js');
+          map = generateTown({
+            width,
+            height,
+            seed,
+            buildings: parseInt(opts.buildings),
+          });
+          break;
+        }
+        case 'multifloor': {
+          const { generateMultiFloor } = await import('./map/multifloor.js');
+          const result = await generateMultiFloor({
+            floors: parseInt(opts.floors),
+            width,
+            height,
+            seed,
+          });
+
+          const outputDir = resolve(opts.output);
+          await mkdir(outputDir, { recursive: true });
+
+          // Save all floors data
+          await writeFile(join(outputDir, 'floors.json'), JSON.stringify(result, null, 2));
+
+          // Render each floor
+          if (opts.render) {
+            const { generateDefaultTileset } = await import('./tileset/registry.js');
+            const { renderMap } = await import('./tileset/terrain.js');
+            const tilesetDir = join(outputDir, 'tileset');
+            await generateDefaultTileset(tilesetDir);
+            for (let i = 0; i < result.floors.length; i++) {
+              await renderMap(result.floors[i], tilesetDir, join(outputDir, `floor_${i + 1}.png`));
+            }
+          }
+
+          spinner.succeed(`multifloor dungeon generated (${result.floors.length} floors, seed: ${seed})`);
+          console.log((await import('chalk')).default.green(`\nOutput: ${outputDir}`));
+          return;
+        }
         default:
-          spinner.fail(`Unknown map type: ${type}. Use: dungeon, cave, overworld, wfc`);
+          spinner.fail(`Unknown map type: ${type}. Use: dungeon, cave, overworld, wfc, town, multifloor`);
           process.exit(1);
       }
 
@@ -273,7 +344,10 @@ program
       // 1. Scaffold Godot project
       const scaffoldSpinner = ora('Scaffolding Godot project...').start();
       const { scaffoldGodotProject, exportCharacterToGodot, exportMapToGodot } = await import('./export/godot.js');
-      await scaffoldGodotProject(outputDir, name);
+      await scaffoldGodotProject(outputDir, name, {
+        characterName: opts.character,
+        mapName: opts.map,
+      });
       scaffoldSpinner.succeed('Godot project scaffolded');
 
       // 2. Generate character

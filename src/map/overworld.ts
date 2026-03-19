@@ -1,5 +1,5 @@
 import { SeededRNG } from '../utils/rng.js';
-import type { OverworldConfig, GeneratedMap, Room } from './types.js';
+import type { OverworldConfig, GeneratedMap, Room, PointOfInterest } from './types.js';
 import { TileType as TT, type TileType } from './types.js';
 
 /** Generate an overworld map with biomes */
@@ -58,12 +58,36 @@ export function generateOverworld(config: OverworldConfig): GeneratedMap {
     rooms[i + 1].connections.push(rooms[i].id);
   }
 
+  // Generate POIs
+  const pois: PointOfInterest[] = [];
+
+  if (villages[0]) {
+    pois.push({ x: villages[0].x, y: villages[0].y, type: 'spawn', label: 'Spawn' });
+  }
+
+  // NPCs near villages
+  for (let i = 0; i < villages.length; i++) {
+    pois.push({ x: villages[i].x + 1, y: villages[i].y, type: 'npc', label: `Village NPC ${i + 1}` });
+  }
+
+  // Treasure at forest edges
+  for (let y = 2; y < height - 2; y += 10) {
+    for (let x = 2; x < width - 2; x += 10) {
+      if (tiles[y][x] === TT.TREE && tiles[y + 1]?.[x] === TT.GRASS) {
+        pois.push({ x, y: y + 1, type: 'treasure', label: 'Forest Treasure' });
+        break;
+      }
+    }
+    if (pois.filter(p => p.type === 'treasure').length >= 3) break;
+  }
+
   return {
     width,
     height,
     tiles,
     rooms,
     seed,
+    pois,
     spawnPoint: villages[0],
     exitPoint: villages.length > 1 ? villages[villages.length - 1] : undefined,
   };
