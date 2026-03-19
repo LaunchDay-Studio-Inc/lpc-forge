@@ -633,4 +633,56 @@ program
     }
   });
 
+// === SYSTEMS COMMAND ===
+program
+  .command('systems')
+  .description('Generate GDScript game systems (enemy AI, inventory, dialog, etc.)')
+  .option('-o, --output <path>', 'Output directory', './output')
+  .option('-s, --system <names...>', 'Specific systems to generate (default: all)')
+  .option('--list', 'List available game systems')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { getAllSystems } = await import('./systems/index.js');
+      const systems = getAllSystems();
+      console.log(chalk.bold.cyan(`\nAvailable Game Systems (${systems.length}):\n`));
+      for (const sys of systems) {
+        const deps = sys.dependencies.length > 0 ? ` (needs: ${sys.dependencies.join(', ')})` : '';
+        const autoloads = sys.autoloads.length > 0 ? ` [autoload: ${sys.autoloads.map(a => a.name).join(', ')}]` : '';
+        console.log(`  ${chalk.green(sys.name)}: ${sys.description}${deps}${autoloads}`);
+        console.log(`    Files: ${sys.files.map(f => f.path).join(', ')}`);
+      }
+      return;
+    }
+
+    const spinner = ora('Generating game systems...').start();
+
+    try {
+      const { writeGameSystems } = await import('./systems/writer.js');
+      const result = await writeGameSystems(resolve(opts.output), opts.system);
+
+      spinner.succeed(chalk.green(`Generated ${result.filesWritten} files across ${result.systems.length} systems → ${opts.output}/`));
+      console.log(`  ${chalk.cyan('Systems')}: ${result.systems.join(', ')}`);
+      if (result.autoloads.length > 0) {
+        console.log(`  ${chalk.yellow('Autoloads (add to project.godot):')}`);
+        for (const al of result.autoloads) {
+          console.log(`    ${al.name} = "${al.path}"`);
+        }
+      }
+      if (result.inputActions.length > 0) {
+        console.log(`  ${chalk.yellow('Input Actions (add to project settings):')}`);
+        for (const action of result.inputActions) {
+          console.log(`    ${action}`);
+        }
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('System generation failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
 program.parse();
