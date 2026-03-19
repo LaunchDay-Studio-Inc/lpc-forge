@@ -329,10 +329,15 @@ program
 // === INIT COMMAND ===
 program
   .command('init')
-  .description('Scaffold a complete Godot project with generated assets')
+  .description('Scaffold a Godot project with generated assets (use --full for premium complete game)')
   .argument('<name>', 'Project name')
   .option('--character <preset>', 'Character preset', 'warrior')
   .option('--map <type>', 'Map type (dungeon, cave, overworld)', 'dungeon')
+  .option('--full', 'Generate FULL premium game (all systems, SFX, UI, lighting, particles)')
+  .option('--lighting <preset>', 'Lighting preset (dungeon_dark, overworld_night, cave, etc.)')
+  .option('--particles <names...>', 'Particle effects to include (rain, fireflies, torch_fire, etc.)')
+  .option('--systems <names...>', 'Specific game systems to include')
+  .option('--no-sfx', 'Skip SFX generation')
   .option('-o, --output <path>', 'Output directory', '.')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .action(async (name: string, opts: any) => {
@@ -340,6 +345,20 @@ program
     const ora = (await import('ora')).default;
 
     const outputDir = resolve(opts.output, name);
+    const isFull = opts.full === true;
+
+    // Premium gate check
+    if (isFull) {
+      const { hasValidLicense } = await import('./license.js');
+      const licensed = await hasValidLicense();
+      if (!licensed) {
+        console.log(chalk.yellow('\n⚠ Premium features require a license key.\n'));
+        console.log(chalk.white('  Purchase LPC Forge Premium at: ') + chalk.cyan.underline('https://blueth.online/plugins/lpc-forge'));
+        console.log(chalk.white('  Then activate with: ') + chalk.green('lpc-forge activate <your-license-key>'));
+        console.log(chalk.gray('\n  Free tier: lpc-forge init my-game (without --full)\n'));
+        process.exit(1);
+      }
+    }
 
     try {
       // 1. Scaffold Godot project
@@ -393,26 +412,323 @@ program
 
       await exportMapToGodot(map, outputDir, opts.map);
 
-      // Also render a visual preview
       const { generateDefaultTileset } = await import('./tileset/registry.js');
       const { renderMap } = await import('./tileset/terrain.js');
       const tilesetDir = join(outputDir, 'tileset');
       await generateDefaultTileset(tilesetDir);
       await renderMap(map, tilesetDir, join(outputDir, 'map_preview.png'));
-
       mapSpinner.succeed(`${opts.map} map generated`);
 
-      // 4. Done
-      console.log(chalk.green(`\n✓ Godot project created at: ${outputDir}`));
+      // === PREMIUM: Full game generation ===
+      if (isFull) {
+        // 4. Game Systems
+        const sysSpinner = ora('Generating game systems...').start();
+        const { writeGameSystems } = await import('./systems/writer.js');
+        const sysResult = await writeGameSystems(outputDir, opts.systems);
+        sysSpinner.succeed(`${sysResult.systems.length} game systems generated (${sysResult.filesWritten} files)`);
+
+        // 5. SFX
+        if (opts.sfx !== false) {
+          const sfxSpinner = ora('Generating sound effects...').start();
+          const { generateAllSfx } = await import('./audio/sfx-generator.js');
+          const sfxResults = await generateAllSfx(outputDir);
+          sfxSpinner.succeed(`${sfxResults.length} sound effects generated`);
+        }
+
+        // 6. UI Kit
+        const uiSpinner = ora('Generating UI kit...').start();
+        const { generateUIKit } = await import('./ui/generator.js');
+        await generateUIKit(join(outputDir, 'ui'), 'medieval');
+        uiSpinner.succeed('UI kit generated');
+
+        // 7. Item Icons
+        const iconsSpinner = ora('Generating item icons...').start();
+        const { generateAllIcons } = await import('./ui/icons.js');
+        await generateAllIcons(join(outputDir, 'icons'));
+        iconsSpinner.succeed('Item icons generated');
+
+        // 8. Props
+        const propsSpinner = ora('Generating props...').start();
+        const { generateAllProps } = await import('./ui/props.js');
+        await generateAllProps(join(outputDir, 'props'));
+        propsSpinner.succeed('Props generated');
+
+        // 9. Portrait
+        const portraitSpinner = ora('Generating character portrait...').start();
+        const { extractPortrait } = await import('./ui/portrait.js');
+        await extractPortrait(charBuffer, outputDir, opts.character);
+        portraitSpinner.succeed('Character portrait generated');
+
+        // 10. Lighting
+        const lightingSpinner = ora('Generating lighting presets...').start();
+        const { writeAllLightingPresets } = await import('./lighting/index.js');
+        const lightingFiles = await writeAllLightingPresets(outputDir);
+        lightingSpinner.succeed(`${lightingFiles.length} lighting presets generated`);
+
+        // 11. Particles
+        const particleSpinner = ora('Generating particle effects...').start();
+        const { writeAllParticlePresets } = await import('./lighting/index.js');
+        const particleFiles = await writeAllParticlePresets(outputDir);
+        particleSpinner.succeed(`${particleFiles.length} particle effects generated`);
+
+        // 12. Generate enemy characters
+        const enemySpinner = ora('Generating enemy characters...').start();
+        const enemyPresets = ['skeleton', 'guard', 'thief'];
+        let enemyCount = 0;
+        for (const enemyPreset of enemyPresets) {
+          if (PRESETS[enemyPreset]) {
+            const enemyBuffer = await composeCharacter(PRESETS[enemyPreset].spec, REPO_ROOT);
+            await exportCharacterToGodot(enemyBuffer, outputDir, enemyPreset, { isPlayer: false });
+            enemyCount++;
+          }
+        }
+        enemySpinner.succeed(`${enemyCount} enemy characters generated`);
+
+        // 13. Generate NPC characters
+        const npcSpinner = ora('Generating NPC characters...').start();
+        const npcPresets = ['merchant', 'healer', 'guard', 'peasant'];
+        let npcCount = 0;
+        for (const npcPreset of npcPresets) {
+          if (PRESETS[npcPreset] && npcPreset !== 'guard') {
+            const npcBuffer = await composeCharacter(PRESETS[npcPreset].spec, REPO_ROOT);
+            await exportCharacterToGodot(npcBuffer, outputDir, `npc_${npcPreset}`, { isPlayer: false });
+            npcCount++;
+          }
+        }
+        npcSpinner.succeed(`${npcCount} NPC characters generated`);
+
+        // 14. Update project.godot with autoloads and input actions
+        const projectGodotPath = join(outputDir, 'project.godot');
+        let projectContent = await (await import('node:fs/promises')).readFile(projectGodotPath, 'utf-8');
+
+        // Add autoloads section
+        if (sysResult.autoloads.length > 0) {
+          let autoloadSection = '\n[autoload]\n\n';
+          for (const al of sysResult.autoloads) {
+            autoloadSection += `${al.name}="${al.path}"\n`;
+          }
+          // Insert before [rendering]
+          projectContent = projectContent.replace('[rendering]', autoloadSection + '[rendering]');
+        }
+
+        // Add custom input actions
+        const customActions = [...new Set([...sysResult.inputActions])];
+        const keyMap: Record<string, number> = {
+          inventory: 73,  // I
+          interact: 69,   // E
+          pause: 4194305,  // Escape
+          quest_log: 74,  // J
+        };
+
+        for (const action of customActions) {
+          const keycode = keyMap[action] ?? 0;
+          if (keycode && !projectContent.includes(`${action}=`)) {
+            const inputEntry = `${action}={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":${keycode},"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}\n`;
+            // Insert before [rendering]
+            projectContent = projectContent.replace('[rendering]', inputEntry + '\n[rendering]');
+          }
+        }
+
+        await (await import('node:fs/promises')).writeFile(projectGodotPath, projectContent);
+
+        // Print summary
+        console.log(chalk.green('\n✅ Full premium project generated!\n'));
+        console.log(chalk.cyan('  📂 Project:        ') + outputDir);
+        console.log(chalk.cyan('  🎮 Game Systems:   ') + sysResult.systems.join(', '));
+        console.log(chalk.cyan('  🔊 Sound Effects:  ') + (opts.sfx !== false ? 'All categories' : 'Skipped'));
+        console.log(chalk.cyan('  🎨 UI Kit:         ') + 'Medieval theme');
+        console.log(chalk.cyan('  🖼️  Icons:          ') + 'All item icons');
+        console.log(chalk.cyan('  🏗️  Props:          ') + 'All prop sprites');
+        console.log(chalk.cyan('  💡 Lighting:       ') + `${lightingFiles.length} presets`);
+        console.log(chalk.cyan('  ✨ Particles:      ') + `${particleFiles.length} effects`);
+        console.log(chalk.cyan('  ⚔️  Enemies:        ') + `${enemyCount} characters`);
+        console.log(chalk.cyan('  🧑 NPCs:           ') + `${npcCount} characters`);
+        console.log(chalk.cyan('  📸 Portrait:       ') + '3 sizes');
+        console.log('');
+        console.log(chalk.yellow('  Autoloads added to project.godot:'));
+        for (const al of sysResult.autoloads) {
+          console.log(chalk.gray(`    ${al.name} → ${al.path}`));
+        }
+        console.log('');
+        console.log(chalk.yellow('  Input Actions:'));
+        for (const action of customActions) {
+          const keyName = Object.entries(keyMap).find(([k]) => k === action)?.[0] ?? action;
+          console.log(chalk.gray(`    ${keyName} → configured`));
+        }
+      } else {
+        // Free tier output
+        console.log(chalk.green(`\n✓ Godot project created at: ${outputDir}`));
+        console.log(chalk.gray(`\nGenerated assets:`));
+        console.log(chalk.gray(`  • Character: sprites/${opts.character}/`));
+        console.log(chalk.gray(`  • Map: ${opts.map}.tscn`));
+        console.log(chalk.gray(`  • Player script: scripts/player.gd`));
+        console.log('');
+        console.log(chalk.yellow('  💎 Want the full game? Run:'));
+        console.log(chalk.cyan('     lpc-forge init my-game --full'));
+        console.log(chalk.gray('     Includes: inventory, dialog, AI, menus, SFX, lighting, particles, and more'));
+      }
+
       console.log(chalk.gray(`\nTo use with Godot 4.6:`));
       console.log(chalk.gray(`  1. Open Godot → Import → Select ${outputDir}/project.godot`));
       console.log(chalk.gray(`  2. Run the project (F5)`));
-      console.log(chalk.gray(`\nGenerated assets:`));
-      console.log(chalk.gray(`  • Character: sprites/${opts.character}/`));
-      console.log(chalk.gray(`  • Map: ${opts.map}.tscn`));
-      console.log(chalk.gray(`  • Player script: scripts/player.gd`));
     } catch (err) {
       console.error(chalk.red(`Failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exit(1);
+    }
+  });
+
+// === ACTIVATE COMMAND ===
+program
+  .command('activate')
+  .description('Activate a premium license key')
+  .argument('[key]', 'License key from your purchase')
+  .option('--status', 'Check current license status')
+  .option('--deactivate', 'Remove stored license')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (key: string | undefined, opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const { getLicenseInfo, activateLicense, deactivateLicense } = await import('./license.js');
+
+    if (opts.deactivate) {
+      await deactivateLicense();
+      console.log(chalk.green('License deactivated.'));
+      return;
+    }
+
+    if (opts.status) {
+      const info = await getLicenseInfo();
+      if (info && info.valid) {
+        console.log(chalk.green('✅ Premium license active'));
+        console.log(chalk.gray(`  Key:       ${info.key.slice(0, 8)}...`));
+        console.log(chalk.gray(`  Email:     ${info.email}`));
+        console.log(chalk.gray(`  Activated: ${info.activatedAt}`));
+      } else {
+        console.log(chalk.yellow('No active license.'));
+        console.log(chalk.gray('  Purchase at: https://blueth.online/plugins/lpc-forge'));
+        console.log(chalk.gray('  Activate:    lpc-forge activate <key>'));
+      }
+      return;
+    }
+
+    if (!key) {
+      console.log(chalk.yellow('Usage: lpc-forge activate <license-key>'));
+      console.log(chalk.gray('  Purchase at: https://blueth.online/plugins/lpc-forge'));
+      return;
+    }
+
+    const ora = (await import('ora')).default;
+    const spinner = ora('Activating license...').start();
+
+    const result = await activateLicense(key);
+
+    if (result.success) {
+      spinner.succeed(chalk.green(result.message));
+      console.log(chalk.cyan('\n  You now have access to premium features!'));
+      console.log(chalk.gray('  Try: lpc-forge init my-game --full'));
+    } else {
+      spinner.fail(chalk.red(result.message));
+    }
+  });
+
+// === LIGHTING COMMAND ===
+program
+  .command('lighting')
+  .description('Generate lighting presets for Godot scenes')
+  .option('-o, --output <path>', 'Output directory', './output')
+  .option('-p, --preset <name>', 'Specific lighting preset')
+  .option('--list', 'List available lighting presets')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { listLightingPresets, getLightingPreset } = await import('./lighting/index.js');
+      console.log(chalk.bold.cyan('\nAvailable Lighting Presets:\n'));
+      for (const name of listLightingPresets()) {
+        const preset = getLightingPreset(name)!;
+        const lights = preset.lights.length > 0 ? ` (${preset.lights.length} light${preset.lights.length > 1 ? 's' : ''})` : '';
+        console.log(`  ${chalk.green(name)}: ${preset.description}${lights}`);
+      }
+      return;
+    }
+
+    const spinner = ora('Generating lighting presets...').start();
+
+    try {
+      if (opts.preset) {
+        const { getLightingPreset, generateLightingScene } = await import('./lighting/index.js');
+        const preset = getLightingPreset(opts.preset);
+        if (!preset) {
+          spinner.fail(chalk.red(`Unknown preset: ${opts.preset}`));
+          process.exit(1);
+        }
+        const { mkdir, writeFile } = await import('node:fs/promises');
+        const outDir = resolve(opts.output, 'lighting');
+        await mkdir(outDir, { recursive: true });
+        const scene = generateLightingScene(preset);
+        await writeFile(join(outDir, `lighting_${opts.preset}.tscn`), scene);
+        spinner.succeed(chalk.green(`Lighting preset "${opts.preset}" → ${opts.output}/lighting/`));
+      } else {
+        const { writeAllLightingPresets } = await import('./lighting/index.js');
+        const files = await writeAllLightingPresets(resolve(opts.output));
+        spinner.succeed(chalk.green(`${files.length} lighting presets → ${opts.output}/lighting/`));
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('Failed'));
+      console.error(err);
+      process.exit(1);
+    }
+  });
+
+// === PARTICLES COMMAND ===
+program
+  .command('particles')
+  .description('Generate particle effect scenes for Godot')
+  .option('-o, --output <path>', 'Output directory', './output')
+  .option('-p, --preset <name>', 'Specific particle preset')
+  .option('--list', 'List available particle effects')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const ora = (await import('ora')).default;
+
+    if (opts.list) {
+      const { listParticlePresets, getParticlePreset } = await import('./lighting/index.js');
+      console.log(chalk.bold.cyan('\nAvailable Particle Effects:\n'));
+      for (const name of listParticlePresets()) {
+        const preset = getParticlePreset(name)!;
+        console.log(`  ${chalk.green(name)}: ${preset.description}`);
+      }
+      return;
+    }
+
+    const spinner = ora('Generating particle effects...').start();
+
+    try {
+      if (opts.preset) {
+        const { getParticlePreset } = await import('./lighting/index.js');
+        const preset = getParticlePreset(opts.preset);
+        if (!preset) {
+          spinner.fail(chalk.red(`Unknown preset: ${opts.preset}`));
+          process.exit(1);
+        }
+        const { mkdir, writeFile } = await import('node:fs/promises');
+        const outDir = resolve(opts.output, 'particles');
+        await mkdir(outDir, { recursive: true });
+        await writeFile(join(outDir, `${opts.preset}.tscn`), preset.scene);
+        spinner.succeed(chalk.green(`Particle "${opts.preset}" → ${opts.output}/particles/`));
+      } else {
+        const { writeAllParticlePresets } = await import('./lighting/index.js');
+        const files = await writeAllParticlePresets(resolve(opts.output));
+        spinner.succeed(chalk.green(`${files.length} particle effects → ${opts.output}/particles/`));
+      }
+    } catch (err) {
+      spinner.fail(chalk.red('Failed'));
+      console.error(err);
       process.exit(1);
     }
   });
