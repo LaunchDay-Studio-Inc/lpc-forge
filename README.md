@@ -12,7 +12,7 @@ Characters · Maps · Enemy AI · Inventory · Dialog · Menus · SFX · Lightin
 [![CI](https://github.com/LaunchDay-Studio-Inc/lpc-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/LaunchDay-Studio-Inc/lpc-forge/actions)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/bJDGXc4DvW)
 
-[Website](https://blueth.online) · [Get Premium](https://blueth.online/plugins/lpc-forge) · [Discord](https://discord.gg/bJDGXc4DvW) · [Report Bug](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
+[Website](https://blueth.online) · [Get Premium](https://launchday.gumroad.com/l/lpc-forge-premium) · [Discord](https://discord.gg/bJDGXc4DvW) · [Report Bug](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
 
 </div>
 
@@ -87,7 +87,7 @@ npx lpc-forge init my-rpg
 ### Get Premium
 
 ```bash
-# 1. Purchase at https://blueth.online/plugins/lpc-forge
+# 1. Purchase at https://launchday.gumroad.com/l/lpc-forge-premium
 # 2. Activate your license key
 lpc-forge activate <your-license-key>
 
@@ -251,7 +251,7 @@ Premium assets include curated content from OpenGameArt.org under CC0/CC-BY-SA l
 
 ### Premium License
 
-LPC Forge Premium (the `--full` content pack, game systems, SFX presets, and curated assets) is sold separately at [blueth.online](https://blueth.online/plugins/lpc-forge). One-time purchase, unlimited projects, no subscription.
+LPC Forge Premium (the `--full` content pack, game systems, SFX presets, and curated assets) is sold separately at [blueth.online](https://launchday.gumroad.com/l/lpc-forge-premium). One-time purchase, unlimited projects, no subscription.
 
 ---
 

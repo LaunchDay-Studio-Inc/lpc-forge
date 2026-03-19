@@ -138,7 +138,7 @@ export async function requireLicense(commandName: string): Promise<void> {
     console.log('');
     console.log(chalk.yellow(`⚠ The "${commandName}" command requires LPC Forge Premium.`));
     console.log('');
-    console.log(chalk.white('  Purchase for $10: ') + chalk.cyan.underline('https://blueth.online/plugins/lpc-forge'));
+    console.log(chalk.white('  Purchase for $10: ') + chalk.cyan.underline('https://launchday.gumroad.com/l/lpc-forge-premium'));
     console.log(chalk.white('  Then activate:    ') + chalk.green('lpc-forge activate <your-license-key>'));
     console.log('');
     console.log(chalk.gray('  Free commands: character, batch, list, map, init (without --full)'));
@@ -164,7 +164,7 @@ async function revalidateOnline(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? 'lpc-forge-premium',
+        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '2jxD5LR4p_tXnvxMiWU7g==',
         license_key: license.key,
         increment_uses_count: 'false', // Don't increment on re-validation
       }),
@@ -266,7 +266,7 @@ export async function activateLicense(licenseKey: string): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? 'lpc-forge-premium',
+        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '2jxD5LR4p_tXnvxMiWU7g==',
         license_key: licenseKey,
         increment_uses_count: 'true',
       }),
