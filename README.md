@@ -1,63 +1,224 @@
-# LPC Forge
+<div align="center">
 
-**Complete 2D game asset pipeline** — character compositor, procedural map generator, and Godot 4.6 exporter. Built on [Liberated Pixel Cup](https://lpc.opengameart.org) sprites.
+# ⚔️ LPC Forge
 
-A headless Node.js CLI toolkit that composes LPC character spritesheets, generates procedural dungeon/overworld maps, and exports everything as Godot 4.6.1-ready assets.
+**The complete 2D RPG asset pipeline.**
 
-By [LaunchDay Studio](https://blueth.online) | [Discord](https://discord.gg/bJDGXc4DvW) | [GitHub](https://github.com/LaunchDay-Studio-Inc/lpc-forge)
+Character compositor · Procedural maps · Godot 4.6 export · One command.
+
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-21+-green.svg)](https://nodejs.org)
+[![Godot](https://img.shields.io/badge/Godot-4.6+-purple.svg)](https://godotengine.org)
+[![Discord](https://img.shields.io/discord/1234567890?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/bJDGXc4DvW)
+
+[Website](https://blueth.online) · [Discord](https://discord.gg/bJDGXc4DvW) · [Report Bug](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
 
 ---
 
-## Quick Start
+**Stop spending weeks on placeholder art.** Generate production-ready characters, dungeons, towns, and overworlds — then export directly to Godot with a working player controller, state machine, and HUD. All in one command.
+
+</div>
+
+## ✨ What You Get
 
 ```bash
-# Clone and install
-git clone https://github.com/LaunchDay-Studio-Inc/lpc-forge.git
-cd lpc-forge
-npm install
-npm run build
-
-# Generate a full Godot project with character + dungeon
 npx lpc-forge init my-rpg
-
-# Or use tsx for development
-npx tsx src/cli.ts init my-rpg
 ```
 
-## Features
+That single command generates:
 
-- **Character Compositor** — Compose multi-layer LPC character spritesheets from CLI (body, hair, armor, weapons, etc.)
-- **Procedural Maps** — Generate dungeons (BSP), caves (cellular automata), overworlds (multi-biome), and WFC terrain
-- **Godot 4.6 Export** — Output `.tscn` scenes, `.tres` SpriteFrames, and a ready-to-run player controller
-- **Frame Slicer** — Split universal spritesheets into individual 64×64 animation frames
-- **Seeded RNG** — All generation is reproducible with seeds
-- **Zero Browser Dependencies** — Pure Node.js with `sharp` for image processing
+| Output | What's Inside |
+|--------|--------------|
+| 🧙 **Character** | Multi-layer spritesheet (body + hair + armor + weapon), sliced animation frames |
+| 🗺️ **Dungeon Map** | BSP rooms, corridors, doors, spawn/treasure/boss POIs |
+| 🎮 **Godot 4.6 Project** | `project.godot`, player state machine, hitbox/hurtbox, camera follow, health HUD |
+| ▶️ **Press F5** | Literally just press play. WASD movement, attack animation, collision — it works. |
 
-## CLI Reference
+## 🚀 Quick Start
 
-### `lpc-forge character`
+```bash
+# Install
+git clone https://github.com/LaunchDay-Studio-Inc/lpc-forge.git
+cd lpc-forge
+npm install && npm run build
 
-Generate a character spritesheet.
+# Generate a full playable Godot project
+npx lpc-forge init my-rpg
+
+# Open in Godot 4.6 → Press F5 → Play
+```
+
+<details>
+<summary><b>📦 Using without cloning (npx)</b></summary>
+
+```bash
+# Coming soon to npm
+npx lpc-forge init my-rpg
+```
+
+</details>
+
+## 🧙 Character Compositor
+
+Compose multi-layer LPC character spritesheets from 17 built-in presets or fully custom specs.
 
 ```bash
 # Use a preset
-lpc-forge character --preset warrior -o ./output/warrior
+lpc-forge character --preset paladin -o ./output/paladin
 
-# Custom character
-lpc-forge character --body male --skin light --hair plain:brown --armor plate:steel
+# Custom character with specific layers
+lpc-forge character --body female --skin light --hair plain:blonde --armor plate:gold
 
-# List all available layers
+# Generate + slice into frames + export for Godot
+lpc-forge character --preset necromancer --slice --godot -o ./output/necromancer
+
+# See all available layers and variants
 lpc-forge character --list-layers
-
-# Generate + slice + export to Godot
-lpc-forge character --preset mage --slice --godot -o ./output/mage
 ```
 
-**Options:**
+### Built-in Presets
+
+| Preset | Description | Body |
+|--------|------------|------|
+| `warrior` | Plate armor, sword ready | Male |
+| `mage` | Blue robes, arcane wielder | Male |
+| `rogue` | Leather armor, shadow dancer | Female |
+| `ranger` | Green tunic, forest scout | Male |
+| `villager` | Simple clothes, peaceful life | Female |
+| `paladin` | Heavy plate, divine protector | Female |
+| `necromancer` | Dark robes, death magic | Male |
+| `knight` | Full plate, helm, champion | Male |
+| `barbarian` | Minimal armor, raw power | Male |
+| `monk` | Simple robes, inner peace | Male |
+| `thief` | Dark clothes, hood, shadows | Male |
+| `healer` | White robes, restoration | Female |
+| `archer` | Leather armor, precision | Female |
+| `merchant` | Fancy clothes, trader | Male |
+| `guard` | Chainmail, town protector | Male |
+| `skeleton` | Undead warrior | Male |
+| `peasant` | Ragged clothes, humble | Male |
+
+### Batch Generation
+
+Generate an entire party from a JSON config:
+
+```bash
+lpc-forge batch examples/party.json -o ./output/party
+```
+
+```json
+{
+  "characters": [
+    { "name": "hero", "preset": "warrior", "slice": true, "godot": true },
+    { "name": "companion", "preset": "mage", "slice": true, "godot": true },
+    { "name": "npc-merchant", "preset": "merchant" },
+    { "name": "enemy-skeleton", "preset": "skeleton" }
+  ]
+}
+```
+
+## 🗺️ Procedural Map Generator
+
+Six map types with seeded RNG for reproducible results.
+
+```bash
+# BSP Dungeon — rooms, corridors, doors
+lpc-forge map dungeon -W 60 -H 60 --rooms 12 -s myseed --render
+
+# Natural Caves — cellular automata
+lpc-forge map cave -W 50 -H 50 --render
+
+# Multi-Biome Overworld — forests, deserts, lakes, villages, roads
+lpc-forge map overworld -W 80 -H 80 --render
+
+# Wave Function Collapse — pattern-based terrain
+lpc-forge map wfc -W 40 -H 40 --render
+
+# Town — buildings, roads, market square, optional walls
+lpc-forge map town -W 60 -H 60 --buildings 8 --render
+
+# Multi-Floor Dungeon — connected floors with stairs
+lpc-forge map multifloor --floors 3 -W 50 -H 50 --render
+```
+
+### Points of Interest
+
+Every generated map includes automatic POI placement:
+
+| POI Type | Description | Visual |
+|----------|------------|--------|
+| 🟢 Spawn | Player start position | Green circle |
+| 💎 Treasure | Loot locations | Yellow diamond |
+| 🔵 NPC | Character placement | Blue square |
+| 🚪 Exit | Floor exit / stairs | Red circle |
+| 💀 Boss | Boss encounter room | Red X |
+
+POIs are included in the exported `map.json` and as `Marker2D` nodes in Godot exports.
+
+## 🎮 Godot 4.6 Export
+
+Not just assets — **a playable game scaffold.**
+
+```bash
+lpc-forge init my-rpg --character paladin --map dungeon
+```
+
+### What gets generated:
+
+```
+my-rpg/
+├── project.godot              # Godot 4.6 project (open this)
+├── main.tscn                  # Main scene — map + player + camera + HUD
+├── scripts/
+│   ├── player.gd              # Full state machine (idle/walk/attack/hurt/death)
+│   └── hud.gd                 # Health bar UI
+├── sprites/
+│   └── paladin/
+│       ├── spritesheet.png    # Composed character sheet
+│       ├── paladin.tres       # SpriteFrames resource
+│       └── paladin.tscn       # Character scene with collision
+├── dungeon.tscn               # TileMapLayer scene with wall collision
+├── tileset/
+│   └── terrain.tres           # TileSet resource
+└── map_preview.png            # Map preview image
+```
+
+### Player Controller Features
+
+The generated `player.gd` includes:
+
+- **State machine** — IDLE, WALK, ATTACK, HURT, DEATH states
+- **4-directional movement** — WASD with proper animation switching
+- **Combat system** — Hitbox/Hurtbox Area2D nodes for attack detection
+- **Health system** — `take_damage()`, `health_changed` signal, death handling
+- **Camera follow** — Smooth Camera2D attached to player
+- **HUD** — ProgressBar health display connected via signals
+
+### Map Scene Features
+
+- **TileMapLayer** — Uses Godot 4.6's modern tile system (not deprecated TileMap)
+- **Wall collision** — StaticBody2D with CollisionShape2D on wall tiles
+- **POI markers** — Marker2D nodes with metadata for spawn, treasure, NPCs, exits
+
+## 📖 CLI Reference
+
+| Command | Description |
+|---------|------------|
+| `lpc-forge character` | Generate a character spritesheet |
+| `lpc-forge batch <config>` | Batch generate from JSON config |
+| `lpc-forge map <type>` | Generate a map (dungeon/cave/overworld/wfc/town/multifloor) |
+| `lpc-forge list` | Browse available sprites and variants |
+| `lpc-forge init <name>` | Scaffold a complete Godot 4.6 project |
+
+<details>
+<summary><b>Full options reference</b></summary>
+
+### Character Options
+
 | Flag | Description | Default |
 |------|------------|---------|
-| `-p, --preset <name>` | Use a preset (`warrior`, `mage`, `rogue`, `ranger`, `villager`) | — |
-| `-b, --body <type>` | Body type (`male`, `female`, `muscular`, `teen`, `child`, `pregnant`) | `male` |
+| `-p, --preset <name>` | Use a built-in preset | — |
+| `-b, --body <type>` | Body type (male, female, muscular, teen, child, pregnant) | `male` |
 | `--skin <variant>` | Skin color | `light` |
 | `--hair <style:color>` | Hair style and color | — |
 | `--armor <type:variant>` | Armor type and variant | — |
@@ -65,125 +226,110 @@ lpc-forge character --preset mage --slice --godot -o ./output/mage
 | `-o, --output <path>` | Output directory | `./output/character` |
 | `--slice` | Slice into individual frames | `false` |
 | `--godot` | Export as Godot 4 resources | `false` |
-| `--list-layers` | List available layers | — |
+| `--list-layers` | List all available layers | — |
 
-### `lpc-forge list`
+### Map Options
 
-List available assets and variants.
-
-```bash
-lpc-forge list
-lpc-forge list --category hair
-lpc-forge list --json
-```
-
-### `lpc-forge map <type>`
-
-Generate a procedural map.
-
-```bash
-# Dungeon with BSP algorithm
-lpc-forge map dungeon -W 60 -H 60 --rooms 10 -s my-seed
-
-# Cave with cellular automata
-lpc-forge map cave -W 50 -H 50
-
-# Multi-biome overworld
-lpc-forge map overworld -W 80 -H 80
-
-# Wave Function Collapse
-lpc-forge map wfc -W 40 -H 40
-
-# Export as Godot TileMap
-lpc-forge map dungeon --godot -o ./output/dungeon
-```
-
-**Options:**
 | Flag | Description | Default |
 |------|------------|---------|
 | `-W, --width <n>` | Map width in tiles | `50` |
 | `-H, --height <n>` | Map height in tiles | `50` |
-| `-s, --seed <seed>` | Random seed | auto |
-| `--rooms <n>` | Number of rooms (dungeon) | `12` |
-| `--room-min <n>` | Minimum room size | `5` |
-| `--room-max <n>` | Maximum room size | `15` |
+| `-s, --seed <seed>` | Random seed (reproducible) | auto |
+| `--rooms <n>` | Room count (dungeon) | `12` |
+| `--room-min <n>` | Min room size | `5` |
+| `--room-max <n>` | Max room size | `15` |
+| `--buildings <n>` | Building count (town) | `6` |
+| `--floors <n>` | Floor count (multifloor) | `3` |
 | `--render` | Render PNG preview | `true` |
 | `--godot` | Export as Godot TileMap | `false` |
 
-### `lpc-forge init <name>`
+</details>
 
-Scaffold a complete Godot 4.6 project with generated assets.
+## ⚙️ How It Works
 
-```bash
-lpc-forge init my-rpg --character warrior --map dungeon
-```
+### Character Pipeline
+1. Parse `sheet_definitions/*.json` → build layer registry
+2. Resolve layers to sprite paths per body type and variant
+3. Load individual animation PNGs → stitch into 832×3456 universal sheet
+4. Sort layers by `zPos` (back to front)
+5. Composite with `sharp` alpha blending → final spritesheet
+6. Optionally slice into 64×64 frames and/or export to Godot
 
-This generates:
-- `project.godot` — Godot 4.6 project file
-- Character sprite frames + `.tres` SpriteFrames resource
-- Map `.tscn` scene with TileMapLayer
-- `scripts/player.gd` — Basic WASD movement + animation controller
+### Map Algorithms
+- **BSP Dungeon** — Binary Space Partitioning → rooms in leaves → corridor connections
+- **Cellular Automata** — Random init + birth/death rules → organic caves
+- **Overworld** — Layered noise heightmap + moisture → biome classification + villages + roads
+- **WFC** — Wave Function Collapse with configurable adjacency constraints
+- **Town** — Central square + building placement + road network + optional walls
+- **Multi-Floor** — Stacked dungeon floors with stair connections between levels
 
-## Character Presets
+## 🎨 Asset Credits & Licensing
 
-| Preset | Body | Layers |
-|--------|------|--------|
-| `warrior` | male | Body, plain hair, plate armor, plate legs/feet |
-| `mage` | male | Body, white hair, blue robe |
-| `rogue` | female | Body, black hair, leather armor, pants, shoes |
-| `ranger` | male | Body, chestnut hair, green shirt, pants, boots |
-| `villager` | female | Body, blonde hair, white shirt, pants, shoes |
+### Code License
 
-## How It Works
+This project is licensed under **[GPL-3.0-or-later](LICENSE)** — inherited from the upstream [Universal LPC Spritesheet Character Generator](https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator).
 
-### Character Compositing
+You are free to use, modify, and distribute this software. If you distribute modified versions, you must also distribute the source code under GPL-3.0.
 
-1. Parse `sheet_definitions/*.json` to build a layer registry
-2. Resolve each layer to sprite paths per body type and variant
-3. For each layer, load individual animation PNGs and stitch into an 832×3456 universal sheet
-4. Sort layers by `zPos` (ascending = back to front)
-5. Composite all layers using `sharp.composite()` with alpha blending
-6. Output the final PNG (optionally slice into frames)
+**Using LPC Forge as a tool to generate assets for your game does NOT make your game GPL.** The GPL applies to the tool's source code, not to the output it produces.
 
-### Map Generation
+### Art Asset Licenses
 
-- **BSP Dungeon** — Recursively partition space, place rooms in leaves, connect via corridors
-- **Cellular Automata** — Random initialization + birth/death rules → natural caves
-- **Overworld** — Layered noise heightmap + moisture → biome classification + villages + paths
-- **WFC** — Wave Function Collapse with configurable adjacency rules
+All sprite assets in the `spritesheets/` directory are from the [Liberated Pixel Cup](https://lpc.opengameart.org) project — a collaborative effort by dozens of artists on [OpenGameArt.org](https://opengameart.org).
 
-## Using with Godot 4.6
+The art uses a mix of open licenses:
 
-1. Run `lpc-forge init my-game`
-2. Open Godot 4.6 → Import → Select `my-game/project.godot`
-3. Press F5 to run — WASD to move the character
+| License | Attribution Required | Share-Alike | DRM OK |
+|---------|---------------------|-------------|--------|
+| [CC0](https://creativecommons.org/public-domain/cc0/) | ❌ No | ❌ No | ✅ Yes |
+| [CC-BY 3.0/4.0](https://creativecommons.org/licenses/by/4.0/) | ✅ Yes | ❌ No | ⚠️ Unclear |
+| [CC-BY-SA 3.0/4.0](https://creativecommons.org/licenses/by-sa/4.0/) | ✅ Yes | ✅ Yes | ⚠️ Unclear |
+| [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt) | ✅ Yes | ❌ No | ✅ Yes |
+| [GPL 2.0/3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) | ✅ Yes | ✅ Yes | ✅ Yes |
 
-The generated `scripts/player.gd` handles input, animation switching, and movement.
+**All licenses allow commercial use.** Yes, you can sell games that use LPC sprites.
 
-## Asset Credits
+### How to Credit
 
-All sprite assets are from the [Liberated Pixel Cup](https://lpc.opengameart.org) project. **You must credit the original artists when using LPC sprites in your project.**
+If you use LPC Forge output in your game, you **must** credit the original artists. The easiest way:
 
-See [CREDITS.csv](CREDITS.csv) for full attribution of all sprites in the `spritesheets/` directory.
+1. Include the [CREDITS.csv](CREDITS.csv) file with your game
+2. Add a credits screen or file with this text:
 
-Licenses used by LPC assets:
-- [CC-BY-SA 3.0/4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-- [CC-BY 3.0/4.0](https://creativecommons.org/licenses/by/4.0/)
-- [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt)
-- [GPL 2.0/3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
-- [CC0](https://creativecommons.org/public-domain/cc0/)
+> Sprites created using [LPC Forge](https://github.com/LaunchDay-Studio-Inc/lpc-forge), built on art from the [Liberated Pixel Cup](https://lpc.opengameart.org) project.
+>
+> Character sprites by: Johannes Sjölund (wulax), Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Nila122, David Conway Jr. (JaidynReiman), Carlo Enrico Victoria (Nemisys), Thane Brimhall (pennomi), laetissima, bluecarrot16, Luke Mehl, Benjamin K. Smith (BenCreating), MuffinElZangano, Durrani, kheftel, Stephen Challener (Redshrike), William.Thompsonj, Marcel van de Steeg (MadMarcel), TheraHedwig, Evert, Pierre Vigier (pvigier), Eliza Wyatt (ElizaWy), Sander Frenken (castelonia), dalonedrau, Lanea Zimmerman (Sharm), Manuel Riecke (MrBeast), Barbara Riviera, Joe White, Mandi Paugh, Shaun Williams, Daniel Eddeland (daneeklu), Emilio J. Sanchez-Sierra, drjamgo, gr3yh47, tskaufma, Fabzy, Yamilian, Skorpio, Tuomo Untinen (reemax), Tracy, thecilekli, LordNeo, Stafford McIntyre, PlatForge project, DCSS authors, DarkwallLKE, Charles Sanchez (CharlesGabriel), Radomir Dopieralski, macmanmatty, Cobra Hubbard (BlueVortexGames), Inboxninja, kcilds/Rocetti/Eredah, Napsio (Vitruvian Studio), The Foreman, AntumDeluge
+>
+> Licensed under CC-BY-SA 3.0 / CC-BY 3.0 / OGA-BY 3.0 / GPL 3.0 / CC0.
+> Full credits: [CREDITS.csv](https://github.com/LaunchDay-Studio-Inc/lpc-forge/blob/master/CREDITS.csv)
 
-## License
+### Original Project Credits
 
-Our code (`src/`) is [MIT](LICENSE) licensed. LPC art assets retain their original licenses — see [CREDITS.csv](CREDITS.csv).
+LPC Forge is built on the [Universal LPC Spritesheet Character Generator](https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator), originally created by [@Gaurav0](https://github.com/Gaurav0), maintained by [@sanderfrenken](https://github.com/sanderfrenken), with major art contributions by [@jrconway3](https://github.com/jrconway3), [@bluecarrot16](https://github.com/bluecarrot16), and [@ElizaWy](https://github.com/ElizaWy).
 
-## Contributing
+The Liberated Pixel Cup was introduced by Bart Kelsey and Chris Webber, originally sponsored by Creative Commons, Mozilla, and the Free Software Foundation as a competition on [OpenGameArt.org](https://opengameart.org).
 
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+## 🤝 Contributing
 
-## Links
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+- 🐛 [Report bugs](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
+- 💡 [Request features](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
+- 🎨 [Add presets](CONTRIBUTING.md)
+
+## 🔗 Links
 
 - **Website:** [blueth.online](https://blueth.online)
 - **Discord:** [discord.gg/bJDGXc4DvW](https://discord.gg/bJDGXc4DvW)
-- **GitHub:** [github.com/LaunchDay-Studio-Inc/lpc-forge](https://github.com/LaunchDay-Studio-Inc/lpc-forge)
-- **LPC on OpenGameArt:** [opengameart.org](https://opengameart.org/content/lpc-collection)
+- **LPC Project:** [lpc.opengameart.org](https://lpc.opengameart.org)
+- **OpenGameArt:** [opengameart.org](https://opengameart.org/content/lpc-collection)
+
+---
+
+<div align="center">
+
+Built with ❤️ by [LaunchDay Studio](https://blueth.online)
+
+**If LPC Forge saves you time, [⭐ star the repo](https://github.com/LaunchDay-Studio-Inc/lpc-forge) and tell a friend.**
+
+</div>

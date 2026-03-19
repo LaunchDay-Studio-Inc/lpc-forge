@@ -1,7 +1,7 @@
 {
-  "name": "@launchday/lpc-forge",
-  "version": "0.1.0",
-  "description": "Complete 2D game asset pipeline — character compositor, procedural map generator, Godot 4 exporter. Built on LPC sprites.",
+  "name": "lpc-forge",
+  "version": "1.0.0",
+  "description": "Complete 2D RPG asset pipeline — character compositor, procedural map generator, and Godot 4.6 exporter. Built on Liberated Pixel Cup sprites.",
   "type": "module",
   "bin": {
     "lpc-forge": "./dist/cli.js"
@@ -12,12 +12,20 @@
     "test": "vitest run",
     "lint": "eslint src/"
   },
-  "keywords": ["lpc", "spritesheet", "pixel-art", "godot", "2d", "game-assets", "procedural-generation"],
-  "author": "LaunchDay Studio <info@launchdaystudio.com>",
-  "license": "MIT",
+  "keywords": [
+    "lpc", "liberated-pixel-cup", "spritesheet", "character-generator",
+    "godot", "godot-4", "gamedev", "pixel-art", "rpg", "2d",
+    "procedural-generation", "dungeon-generator", "tilemap",
+    "indie-game", "game-assets", "sprite-compositor"
+  ],
+  "author": "LaunchDay Studio <info@launchdaystudio.com> (https://blueth.online)",
+  "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/LaunchDay-Studio-Inc/lpc-forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues"
   },
   "homepage": "https://blueth.online",
   "engines": {
