@@ -164,7 +164,7 @@ async function revalidateOnline(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '2jxD5LR4p_tXnvxMiWU7g==',
+        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '-2jxD5LR4p_tXnvxMiWU7g==',
         license_key: license.key,
         increment_uses_count: 'false', // Don't increment on re-validation
       }),
@@ -266,7 +266,7 @@ export async function activateLicense(licenseKey: string): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '2jxD5LR4p_tXnvxMiWU7g==',
+        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '-2jxD5LR4p_tXnvxMiWU7g==',
         license_key: licenseKey,
         increment_uses_count: 'true',
       }),
