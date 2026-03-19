@@ -1,173 +1,189 @@
- LPC Spritesheet Character Generator
- =============================================
+# LPC Forge
 
- #### Translations
-[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/liberatedpixelcup/Universal-LPC-Spritesheet-Character-Generator/blob/master/README.md) [![zh](https://img.shields.io/badge/lang-zh-green.svg)](https://github.com/liberatedpixelcup/Universal-LPC-Spritesheet-Character-Generator/blob/master/lang/zh/README_ZH.md)
+**Complete 2D game asset pipeline** — character compositor, procedural map generator, and Godot 4.6 exporter. Built on [Liberated Pixel Cup](https://lpc.opengameart.org) sprites.
 
-This generator attempts to include all [LPC](https://lpc.opengameart.org) created character art up to now.
+A headless Node.js CLI toolkit that composes LPC character spritesheets, generates procedural dungeon/overworld maps, and exports everything as Godot 4.6.1-ready assets.
 
-Try it [here](https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/).
+By [LaunchDay Studio](https://blueth.online) | [Discord](https://discord.gg/bJDGXc4DvW) | [GitHub](https://github.com/LaunchDay-Studio-Inc/lpc-forge)
 
-The Liberated Pixel Effort is a collaborative effort from a number of different great artists who helped produce sprites for the project.
-**If you wish to use LPC sprites in your project, you will need to credit everyone who helped contribute to the LPC sprites you are using.** See [below](#licensing-and-attribution-credits) for how to do this.
+---
 
-Although this particular repository focuses on character sprites, LPC includes many tilesets and some other artwork as well. Tileset collections can be found on [OpenGameArt.org](https://opengameart.org)
+## Quick Start
 
-### History
+```bash
+# Clone and install
+git clone https://github.com/LaunchDay-Studio-Inc/lpc-forge.git
+cd lpc-forge
+npm install
+npm run build
 
-The concept of the Liberated Pixel Cup was introduced by Bart Kelsey and Chris Webber. It was originally a competition on [OpenGameArt.org](https://opengameart.org) sponsored by Creative Commons, Mozilla, and the Free Software Foundation. (Note: These organizations do not sponsor and are not involved with this generator.) The idea was to create a body of artwork with a common [style](https://lpc.opengameart.org/static/LPC-Style-Guide/build/index.html).
+# Generate a full Godot project with character + dungeon
+npx lpc-forge init my-rpg
 
-This was originally based on https://github.com/makrohn/Universal-LPC-spritesheet, which contained an xcf file combining all the assets from pngs. That repository was originally included in this repository as a submodule, and probably represented the first (albeit offline) LPC Spritesheet Generator. Thanks to [@makrohn](https://github.com/makrohn) for creating it.
+# Or use tsx for development
+npx tsx src/cli.ts init my-rpg
+```
 
-[@Gaurav0](https://github.com/Gaurav0) was the original author of this repository. However, life came in the way and he did not keep up with maintaining it. Thanks to [@sanderfrenken](https://github.com/sanderfrenken) for maintaining the primary fork of the repository for many years.
+## Features
 
-[@jrconway3](https://github.com/jrconway3) and [@bluecarrot16](https://github.com/bluecarrot16) have been the key art focused maintainers of the repository.
+- **Character Compositor** — Compose multi-layer LPC character spritesheets from CLI (body, hair, armor, weapons, etc.)
+- **Procedural Maps** — Generate dungeons (BSP), caves (cellular automata), overworlds (multi-biome), and WFC terrain
+- **Godot 4.6 Export** — Output `.tscn` scenes, `.tres` SpriteFrames, and a ready-to-run player controller
+- **Frame Slicer** — Split universal spritesheets into individual 64×64 animation frames
+- **Seeded RNG** — All generation is reproducible with seeds
+- **Zero Browser Dependencies** — Pure Node.js with `sharp` for image processing
 
-[@ElizaWy](https://github.com/ElizaWy) has revised and expanded the LPC paradigm. See https://github.com/ElizaWy/LPC
+## CLI Reference
 
-### Licensing and Attribution (Credits)
+### `lpc-forge character`
 
-Each piece of artwork distributed from this project (all images in the `spritesheets` subdirectory) is licensed under one or more of the following supported open license(s):
+Generate a character spritesheet.
 
+```bash
+# Use a preset
+lpc-forge character --preset warrior -o ./output/warrior
+
+# Custom character
+lpc-forge character --body male --skin light --hair plain:brown --armor plate:steel
+
+# List all available layers
+lpc-forge character --list-layers
+
+# Generate + slice + export to Godot
+lpc-forge character --preset mage --slice --godot -o ./output/mage
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|------------|---------|
+| `-p, --preset <name>` | Use a preset (`warrior`, `mage`, `rogue`, `ranger`, `villager`) | — |
+| `-b, --body <type>` | Body type (`male`, `female`, `muscular`, `teen`, `child`, `pregnant`) | `male` |
+| `--skin <variant>` | Skin color | `light` |
+| `--hair <style:color>` | Hair style and color | — |
+| `--armor <type:variant>` | Armor type and variant | — |
+| `--weapon <type:variant>` | Weapon type and variant | — |
+| `-o, --output <path>` | Output directory | `./output/character` |
+| `--slice` | Slice into individual frames | `false` |
+| `--godot` | Export as Godot 4 resources | `false` |
+| `--list-layers` | List available layers | — |
+
+### `lpc-forge list`
+
+List available assets and variants.
+
+```bash
+lpc-forge list
+lpc-forge list --category hair
+lpc-forge list --json
+```
+
+### `lpc-forge map <type>`
+
+Generate a procedural map.
+
+```bash
+# Dungeon with BSP algorithm
+lpc-forge map dungeon -W 60 -H 60 --rooms 10 -s my-seed
+
+# Cave with cellular automata
+lpc-forge map cave -W 50 -H 50
+
+# Multi-biome overworld
+lpc-forge map overworld -W 80 -H 80
+
+# Wave Function Collapse
+lpc-forge map wfc -W 40 -H 40
+
+# Export as Godot TileMap
+lpc-forge map dungeon --godot -o ./output/dungeon
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|------------|---------|
+| `-W, --width <n>` | Map width in tiles | `50` |
+| `-H, --height <n>` | Map height in tiles | `50` |
+| `-s, --seed <seed>` | Random seed | auto |
+| `--rooms <n>` | Number of rooms (dungeon) | `12` |
+| `--room-min <n>` | Minimum room size | `5` |
+| `--room-max <n>` | Maximum room size | `15` |
+| `--render` | Render PNG preview | `true` |
+| `--godot` | Export as Godot TileMap | `false` |
+
+### `lpc-forge init <name>`
+
+Scaffold a complete Godot 4.6 project with generated assets.
+
+```bash
+lpc-forge init my-rpg --character warrior --map dungeon
+```
+
+This generates:
+- `project.godot` — Godot 4.6 project file
+- Character sprite frames + `.tres` SpriteFrames resource
+- Map `.tscn` scene with TileMapLayer
+- `scripts/player.gd` — Basic WASD movement + animation controller
+
+## Character Presets
+
+| Preset | Body | Layers |
+|--------|------|--------|
+| `warrior` | male | Body, plain hair, plate armor, plate legs/feet |
+| `mage` | male | Body, white hair, blue robe |
+| `rogue` | female | Body, black hair, leather armor, pants, shoes |
+| `ranger` | male | Body, chestnut hair, green shirt, pants, boots |
+| `villager` | female | Body, blonde hair, white shirt, pants, shoes |
+
+## How It Works
+
+### Character Compositing
+
+1. Parse `sheet_definitions/*.json` to build a layer registry
+2. Resolve each layer to sprite paths per body type and variant
+3. For each layer, load individual animation PNGs and stitch into an 832×3456 universal sheet
+4. Sort layers by `zPos` (ascending = back to front)
+5. Composite all layers using `sharp.composite()` with alpha blending
+6. Output the final PNG (optionally slice into frames)
+
+### Map Generation
+
+- **BSP Dungeon** — Recursively partition space, place rooms in leaves, connect via corridors
+- **Cellular Automata** — Random initialization + birth/death rules → natural caves
+- **Overworld** — Layered noise heightmap + moisture → biome classification + villages + paths
+- **WFC** — Wave Function Collapse with configurable adjacency rules
+
+## Using with Godot 4.6
+
+1. Run `lpc-forge init my-game`
+2. Open Godot 4.6 → Import → Select `my-game/project.godot`
+3. Press F5 to run — WASD to move the character
+
+The generated `scripts/player.gd` handles input, animation switching, and movement.
+
+## Asset Credits
+
+All sprite assets are from the [Liberated Pixel Cup](https://lpc.opengameart.org) project. **You must credit the original artists when using LPC sprites in your project.**
+
+See [CREDITS.csv](CREDITS.csv) for full attribution of all sprites in the `spritesheets/` directory.
+
+Licenses used by LPC assets:
+- [CC-BY-SA 3.0/4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+- [CC-BY 3.0/4.0](https://creativecommons.org/licenses/by/4.0/)
+- [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt)
+- [GPL 2.0/3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
 - [CC0](https://creativecommons.org/public-domain/cc0/)
-  - Allowed to be used under any circumstances, attribution not required
-- [CC-BY-SA](https://creativecommons.org/licenses/by-sa/4.0/deed.en)[^2]
-  - Must credit the authors, may not encrypt or protect[^1] AND
-  - Must distribute any derivative artwork or modifications under CC-BY-SA 4.0 or later
-- [CC-BY](https://creativecommons.org/licenses/by/4.0/)
-  - Must credit the authors, may not encrypt or protect[^1]
-- [OGA-BY](https://static.opengameart.org/OGA-BY-3.0.txt)
-  - Must credit the authors, may encrypt in DRM protected games
-- [GPL](https://www.gnu.org/licenses/gpl-3.0.en.html#license-text)
-  - Must distribute any derivative artwork or modifications under GPL 3.0 or later
 
-[^1]: It is unclear whether this means you cannot release your game on platforms like Steam and the App Store on iOS which use encryption to DRM protect your game. It could be enough to make the assets easily available separately for download, but the DRM clause does not clearly state this. It could be enough to make a DRM free version available to those who purchase the game on these platforms, but again, the DRM clause does not clearly state this. To be safe from any potential legal issues, I would recommend you use CC0 and/or OGA-BY assets only if you intend to publish on such platforms. The OGA-BY license removes the DRM clause for precisely this reason.
+## License
 
-[^2]: This is the most restrictive license for any art supplied by this generator. You may use all the art in this repository if you follow all the terms of this license. Yes, this license allows you to use the art in this generator in commercial games.
+Our code (`src/`) is [MIT](LICENSE) licensed. LPC art assets retain their original licenses — see [CREDITS.csv](CREDITS.csv).
 
-**If you generate a sprite using this tool, or use individual images taken directly from the `spritesheets` subdirectory from this repo, you must at least credit all the authors (except for CC0 licensed artwork).**
+## Contributing
 
-When using the generator, you can find download a text as csv or plain text file that contains all the license information of the selected assets in your spritesheet:
+Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-![license-sheet](/readme-images/credits-sheet.png)
+## Links
 
-Alternatively, you can also use the file [CREDITS.csv](/CREDITS.csv).
-
-This file lists the authors, license(s), and links to the original URL(s), for every image inside `spritesheets`. 
-
-Concluding, to conform to the **attribution** requirement of the used artwork, you can either:
-
-- Distribute the entire [CREDITS.csv](/CREDITS.csv) file along with your project.
-- Distribute a composed list containing the credits for the assets you use in your project. 
-
-Make sure this credits file is accessible from within your game or app and can be reasonably discovered by users (for instance, show the information on the "Credits" screen directly, or provide a visible link).
-
-**Importantly, the individual licenses may impose additional restrictions. It's your responsibility to conform to the licenses imposed by the artwork in use.**
-
-If you don't want to *show* the entire credits file directly, should include a statement like this on your credits screen:
-
-> - Sprites by: Johannes Sjölund (wulax), Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Nila122, David Conway Jr. (JaidynReiman), Carlo Enrico Victoria (Nemisys), Thane Brimhall (pennomi), laetissima, bluecarrot16, Luke Mehl, Benjamin K. Smith (BenCreating), MuffinElZangano, Durrani, kheftel, Stephen Challener (Redshrike), William.Thompsonj, Marcel van de Steeg (MadMarcel), TheraHedwig, Evert, Pierre Vigier (pvigier), Eliza Wyatt (ElizaWy), Johannes Sjölund (wulax), Sander Frenken (castelonia), dalonedrau, Lanea Zimmerman (Sharm), Manuel Riecke (MrBeast), Barbara Riviera, Joe White, Mandi Paugh, Shaun Williams, Daniel Eddeland (daneeklu), Emilio J. Sanchez-Sierra, drjamgo, gr3yh47, tskaufma, Fabzy, Yamilian, Skorpio, kheftel, Tuomo Untinen (reemax), Tracy, thecilekli, LordNeo, Stafford McIntyre, PlatForge project, DCSS authors, DarkwallLKE, Charles Sanchez (CharlesGabriel), Radomir Dopieralski, macmanmatty, Cobra Hubbard (BlueVortexGames), Inboxninja, kcilds/Rocetti/Eredah, Napsio (Vitruvian Studio), The Foreman, AntumDeluge
-> - Sprites contributed as part of the Liberated Pixel Cup project from OpenGameArt.org: http://opengameart.org/content/lpc-collection
-> - License: Creative Commons Attribution-ShareAlike 3.0 (CC-BY-SA 3.0) <http://creativecommons.org/licenses/by-sa/3.0/>
-> - Detailed credits: [LINK TO CREDITS.CSV FILE]
-
-**For additional information on the licensing and attribution requirement, please refer here on [OpenGameArt.org](https://opengameart.org/content/faq#q-proprietary).**
-
-### [Contributing](CONTRIBUTING.md) ⤴
-
-### Animation Frame Guide
-
-You can look at [the Animation Guide in Eliza's repository](https://github.com/ElizaWy/LPC/blob/f07f7f5892e67c932c68f70bb04472f2c64e46bc/Characters/_%20Guides%20%26%20Palettes/Animation%20Guides) for a detailed suggested guide to how she recommends you display your animations.
-
-Also, each animation has a frame cycle documented which you can see next to the animation preview.
-
-### Run This Project Locally for Development
-
-Traditionally, you could run this project, by opening `index.html` in your browser of choice.
-However, today's browsers have some security restrictions that do make this somewhat impractical.
-You will likely have to change your browser's settings to enable it to open a file url this way.
-You may instead wish to use a web server locally for development. Some free recommendations:
-- IIS (Windows only) (NOT open source)
-- Python (py -m http.server <port>)
-- Rust (Simple Http Server)
-- Node.js (require('http'))
-- nginx
-- npx serve
-- brew serve (Mac only)
-- Lighttpd
-
-### Plugins and Development Tools for Use in Game Engines
-
-#### Godot
-
-There is a [plugin available for Godot 3.5](https://godotengine.org/asset-library/asset/1673)
-
-There is another [plugin available for Godot 4.2](https://godotengine.org/asset-library/asset/2212)
-
-#### RPG Maker MZ
-
-There is a project under development for a [set of plugins and demo game](https://github.com/LiberatedPixelCup/RPG_Maker_MZ_LPC_Starter_Kit) under this organization.
-
-#### Other Game Engines
-
-We would really like to see similar tools developed for other popular game engines. If you know of any that have been developed, please open a pull request to this repository and add it to this README.
-
-If an engine is not listed above, try Google. However, it is very likely that you will have to do some coding.
-
-### FAQ
-
-<dl>
-  <dt>May I use this art in my commercial game?</dt>
-  <dd>Yes, however you must follow all the terms of the license(s) for the art you are using. See <a href="#licensing-and-attribution-credits">Licensing and Attribution (Credits)</a></dd>
-  <dt>How do I use the output of this generator in &lt;insert game engine&gt;?</dt>
-  <dd>There may be resources available to do this already. We have added a <a href="#other-game-engines">list</a> for a few common game engines. If your favorite engine is not listed there, try Google. In most cases, however, you will still have to write some code.</dd>
-  <dt>I downloaded the image, but I forgot to get the &lt;url, credits, etc.&gt; How do I get back to where I was?</dt>
-  <dd>It is recommended that you "export to JSON" to avoid this problem in the future and save the json file with the png image file. See <a href="https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/issues/143">Issue #143</a></dd>
-</dl>
-
-### Terms
-
-<dl>
-  <dt>Liberated Pixel Cup (LPC)</dt>
-  <dd>Originally a competition designed to create a large body of compatible art assets. Now also refers to that body of work and the style art marked as LPC attempts to follow.</dd>
-  <dt>Universal LPC (ULPC)</dt>
-  <dd>LPC originally expanded to add some new animation sizes and bases. This generator helped ensure that many assets covered all those bases and animations. LPC originally included only spellcast, slash, thrust, walk, shoot, and hurt animations for male and female adult bases. It also stuck to a standard 64x64 format. The most notable change in ULPC was to add weapons with oversize animation frames.</dd>
-  <dt>LPC Revised (LPCR)</dt>
-  <dd>LPC changes proposed by <a href="https://github.com/ElizaWy">@ElizaWy</a> that in some cases changed the number and order of animation frames, a new color palette, and the smaller heads.</dd>
-  <dt>LPC Expanded (LPCE)</dt>
-  <dd>Additional expansion of animations and bases proposed by <a href="https://github.com/ElizaWy">@ElizaWy</a> and others. New animations included bow, climb, run, and jump. New bases included child and elderly. Many of the assets in this repository are not yet drawn for these new animations and bases. Help wanted.</dd>
-</dl>
-
-### Alternative LPC Character generators
-
-- https://pflat.itch.io/lpc-character-generator
-- https://vitruvianstudio.github.io/
-
-### Tools
-
-- [lpctools](https://github.com/bluecarrot16/lpctools)
-- [how to install lpctools](tools/LPCTOOLS.md)
-- [recompile full sheets using lpctools](tools/REBUILD.md)
-- [convert assets to vitruvian studios](tools/VITRUVIAN.md)
-
-### Development
-
-#### Performance Profiling
-
-The generator includes built-in performance profiling tools to help identify rendering bottlenecks and optimize performance. See [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) for detailed documentation.
-
-**Quick Start:**
-- Profiler is automatically enabled when running on `localhost`
-- Override with `?debug=true` or `?debug=false` in the URL
-- View metrics in Chrome DevTools → Performance tab
-- Run `profiler.report()` in the console for a summary
-
-**What it tracks:**
-- Canvas rendering time (drawing, compositing)
-- Image loading performance
-- UI update operations
-- Frame rate (FPS)
-- Memory usage
-
-### Examples
-![example](/readme-images/example.png)
+- **Website:** [blueth.online](https://blueth.online)
+- **Discord:** [discord.gg/bJDGXc4DvW](https://discord.gg/bJDGXc4DvW)
+- **GitHub:** [github.com/LaunchDay-Studio-Inc/lpc-forge](https://github.com/LaunchDay-Studio-Inc/lpc-forge)
+- **LPC on OpenGameArt:** [opengameart.org](https://opengameart.org/content/lpc-collection)

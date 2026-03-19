@@ -1,0 +1,209 @@
+import sharp from 'sharp';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  type CharacterSpec,
+  type LayerDefinition,
+  ANIMATIONS,
+  FRAME_SIZE,
+  SHEET_WIDTH,
+  SHEET_HEIGHT,
+  ANIMATION_FOLDER_MAP,
+} from './types.js';
+import { loadDefinitions, findDefinition } from './definitions.js';
+
+interface ResolvedLayer {
+  zPos: number;
+  basePath: string; // relative to spritesheets/
+  variant: string;
+  animations: string[];
+  customAnimation?: string;
+}
+
+/** Compose a complete character spritesheet from a CharacterSpec */
+export async function composeCharacter(
+  spec: CharacterSpec,
+  repoRoot: string,
+): Promise<Buffer> {
+  const registry = await loadDefinitions(repoRoot);
+  const spritesDir = join(repoRoot, 'spritesheets');
+
+  // Resolve all layers to concrete sprite paths
+  const resolvedLayers: ResolvedLayer[] = [];
+
+  for (const layer of spec.layers) {
+    const def = findDefinition(registry, layer.category, layer.subcategory);
+    if (!def) {
+      console.warn(`Warning: No definition found for ${layer.category}/${layer.subcategory}, skipping`);
+      continue;
+    }
+
+    for (const entry of def.layers) {
+      // Skip custom animation layers for now (oversize attacks, etc.)
+      if (entry.customAnimation) continue;
+
+      const basePath = entry.paths[spec.bodyType];
+      if (!basePath) {
+        // Try to find a fallback body type
+        const fallback = findFallbackBodyType(entry.paths, spec.bodyType);
+        if (!fallback) {
+          console.warn(
+            `Warning: ${def.name} layer has no path for body type "${spec.bodyType}", skipping`,
+          );
+          continue;
+        }
+        resolvedLayers.push({
+          zPos: entry.zPos,
+          basePath: fallback,
+          variant: layer.variant,
+          animations: def.animations,
+        });
+      } else {
+        resolvedLayers.push({
+          zPos: entry.zPos,
+          basePath,
+          variant: layer.variant,
+          animations: def.animations,
+        });
+      }
+    }
+  }
+
+  // Sort by zPos ascending (back to front)
+  resolvedLayers.sort((a, b) => a.zPos - b.zPos);
+
+  // Build universal sheets for each resolved layer
+  const layerBuffers: Buffer[] = [];
+
+  for (const layer of resolvedLayers) {
+    const buffer = await buildUniversalSheet(layer, spritesDir);
+    if (buffer) {
+      layerBuffers.push(buffer);
+    }
+  }
+
+  if (layerBuffers.length === 0) {
+    throw new Error('No valid layers could be loaded. Check your CharacterSpec.');
+  }
+
+  // Composite all layers together
+  const composites = layerBuffers.map((input) => ({
+    input,
+    top: 0,
+    left: 0,
+    blend: 'over' as const,
+  }));
+
+  return sharp({
+    create: {
+      width: SHEET_WIDTH,
+      height: SHEET_HEIGHT,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .composite(composites)
+    .toBuffer();
+}
+
+function findFallbackBodyType(
+  paths: Record<string, string>,
+  bodyType: string,
+): string | null {
+  // Fallback chain
+  const fallbacks: Record<string, string[]> = {
+    muscular: ['male'],
+    pregnant: ['female'],
+    teen: ['male', 'female'],
+    child: ['teen', 'male'],
+  };
+
+  const chain = fallbacks[bodyType] ?? [];
+  for (const fb of chain) {
+    if (paths[fb]) return paths[fb];
+  }
+  return null;
+}
+
+/** Build a universal 832×3456 sheet from individual animation PNGs */
+async function buildUniversalSheet(
+  layer: ResolvedLayer,
+  spritesDir: string,
+): Promise<Buffer | null> {
+  const composites: sharp.OverlayOptions[] = [];
+
+  // Map animation names used in definitions to folder names
+  const animationList = Object.keys(ANIMATIONS);
+
+  for (const animName of animationList) {
+    const animInfo = ANIMATIONS[animName];
+
+    // Check if this layer supports this animation
+    const defAnimNames = layer.animations.map((a) => {
+      const mapped = ANIMATION_FOLDER_MAP[a];
+      return mapped ?? a;
+    });
+
+    // The folder name might differ from the animation name
+    const folderName = ANIMATION_FOLDER_MAP[animName] ?? animName;
+
+    // Check if the definition lists this animation (using either name)
+    const supportsAnim = layer.animations.length === 0 || // no filter = all
+      layer.animations.some((a) => {
+        const mapped = ANIMATION_FOLDER_MAP[a] ?? a;
+        return mapped === animName || mapped === folderName || a === animName;
+      });
+
+    if (!supportsAnim) continue;
+
+    // Convert variant name: spaces to underscores for filenames
+    const variantFile = layer.variant.replace(/ /g, '_');
+
+    // Try to find the animation PNG
+    const animPath = join(spritesDir, layer.basePath, folderName, `${variantFile}.png`);
+
+    if (!existsSync(animPath)) {
+      // Also try without folder mapping
+      const altPath = join(spritesDir, layer.basePath, animName, `${variantFile}.png`);
+      if (existsSync(altPath)) {
+        try {
+          const buf = await sharp(altPath).png().toBuffer();
+          composites.push({
+            input: buf,
+            top: animInfo.row * FRAME_SIZE,
+            left: 0,
+          });
+        } catch {
+          // Skip unreadable files
+        }
+      }
+      continue;
+    }
+
+    try {
+      const buf = await sharp(animPath).png().toBuffer();
+      composites.push({
+        input: buf,
+        top: animInfo.row * FRAME_SIZE,
+        left: 0,
+      });
+    } catch {
+      // Skip unreadable files
+    }
+  }
+
+  if (composites.length === 0) return null;
+
+  return sharp({
+    create: {
+      width: SHEET_WIDTH,
+      height: SHEET_HEIGHT,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .composite(composites)
+    .toBuffer();
+}

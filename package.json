@@ -1,18 +1,40 @@
 {
-  "devDependencies": {
-    "@babel/eslint-parser": "^7.28.5",
-    "eslint": "^8.57.1",
-    "testem": "^3.17.0",
-    "mocha": "^11.7.5",
-    "chai": "^6.2.2",
-    "mithril": "^2.3.8"
+  "name": "@launchday/lpc-forge",
+  "version": "0.1.0",
+  "description": "Complete 2D game asset pipeline — character compositor, procedural map generator, Godot 4 exporter. Built on LPC sprites.",
+  "type": "module",
+  "bin": {
+    "lpc-forge": "./dist/cli.js"
   },
-  "overrides": {
-    "testem": {
-      "tmp": "^0.2.5"
-    },
-    "mocha": {
-      "diff": "^8.0.3"
-    }
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  },
+  "keywords": ["lpc", "spritesheet", "pixel-art", "godot", "2d", "game-assets", "procedural-generation"],
+  "author": "LaunchDay Studio <info@launchdaystudio.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LaunchDay-Studio-Inc/lpc-forge.git"
+  },
+  "homepage": "https://blueth.online",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "sharp": "^0.34.0",
+    "commander": "^13.0.0",
+    "chalk": "^5.4.0",
+    "ora": "^8.2.0",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0"
   }
 }

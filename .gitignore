@@ -1,4 +1,7 @@
 _universal/
 node_modules/
+dist/
+output/
+.env
 test-results-*.html
 .idea/
