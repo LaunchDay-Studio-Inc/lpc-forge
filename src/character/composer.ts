@@ -54,7 +54,16 @@ export async function composeCharacter(
 
     // Validate variant exists for definitions that track variants
     if (def.variants.length > 0 && !def.variants.includes(layer.variant)) {
-      issues.push(`Unknown variant "${layer.variant}" for ${def.name}. Available: ${def.variants.join(', ')}`);
+      const suggestions = def.variants.filter(v =>
+        v.includes(layer.variant) || layer.variant.includes(v)
+      );
+      const hint = suggestions.length > 0
+        ? ` Did you mean: ${suggestions.join(', ')}?`
+        : '';
+      issues.push(
+        `Unknown variant "${layer.variant}" for ${def.name}. ` +
+        `Available: ${def.variants.join(', ')}${hint}`,
+      );
     }
   }
 

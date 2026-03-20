@@ -4,13 +4,9 @@ on:
   push:
     branches:
       - master
-      - full_rewrite
-      - paint-in-place-for-real
   pull_request:
     branches:
       - master
-      - full_rewrite
-      - paint-in-place-for-real
 
 jobs:
   validate_site_sources:
@@ -21,12 +17,12 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Validate site sources generation
         run: |

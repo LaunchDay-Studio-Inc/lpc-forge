@@ -50,7 +50,7 @@ interface LocalManifest {
 // Constants
 // ──────────────────────────────────────────────
 
-const GITHUB_REPO = 'LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator';
+const GITHUB_REPO = 'LaunchDay-Studio-Inc/lpc-forge';
 const MANIFEST_FILENAME = 'assets-manifest.json';
 const LOCAL_MANIFEST = '.lpc-forge-manifest.json';
 
@@ -176,6 +176,23 @@ function followRedirects(url: string, maxRedirects = 5): Promise<IncomingMessage
     });
     req.on('error', reject);
   });
+}
+
+async function downloadToFileWithRetry(
+  url: string,
+  destPath: string,
+  onProgress?: (downloaded: number, total: number | null) => void,
+  retries = 1,
+): Promise<void> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await downloadToFile(url, destPath, onProgress);
+      return;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+    }
+  }
 }
 
 async function downloadToFile(
@@ -393,7 +410,7 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
       overallTotal: totalSize,
     });
 
-    await downloadToFile(chunk.url, archivePath, (downloaded, total) => {
+    await downloadToFileWithRetry(chunk.url, archivePath, (downloaded, total) => {
       options.onProgress?.({
         phase: 'downloading',
         currentChunk: chunk.name,
@@ -641,7 +658,7 @@ export async function downloadWithProgress(options: DownloadOptions = {}): Promi
 
     try {
       // Download
-      await downloadToFile(chunk.url, archivePath, (downloaded, total) => {
+      await downloadToFileWithRetry(chunk.url, archivePath, (downloaded, total) => {
         const t = total ?? chunk.size;
         const pct = Math.round((downloaded / t) * 100);
         spinner.text = `${chunk.name} (${formatBytes(chunk.size)})  ${progressBar(downloaded / t)}  ${pct}%`;

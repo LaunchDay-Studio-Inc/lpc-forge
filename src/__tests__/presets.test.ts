@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PRESETS } from '../character/presets.js';
+import { loadDefinitions, findDefinition } from '../character/definitions.js';
 
 const EXPECTED_PRESETS = [
   'warrior', 'mage', 'rogue', 'ranger', 'villager',
@@ -58,5 +59,31 @@ describe('Character Presets', () => {
 
   it('barbarian should use muscular body type', () => {
     expect(PRESETS['barbarian'].spec.bodyType).toBe('muscular');
+  });
+
+  it('all presets have valid layer references against sheet_definitions', async () => {
+    const assetRoot = process.env.LPC_FORGE_ASSETS || './';
+
+    let registry;
+    try {
+      registry = await loadDefinitions(assetRoot);
+    } catch {
+      console.warn('Skipping preset validation — assets not available');
+      return;
+    }
+
+    for (const [name, preset] of Object.entries(PRESETS)) {
+      for (const layer of preset.spec.layers) {
+        const def = findDefinition(registry, layer.category, layer.subcategory);
+        expect(def, `Preset "${name}": unknown ${layer.category}/${layer.subcategory}`).toBeTruthy();
+
+        if (def && def.variants.length > 0) {
+          expect(
+            def.variants,
+            `Preset "${name}": invalid variant "${layer.variant}" for ${layer.subcategory}. Valid: ${def.variants.join(', ')}`,
+          ).toContain(layer.variant);
+        }
+      }
+    }
   });
 });

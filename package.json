@@ -1,6 +1,6 @@
 {
   "name": "lpc-forge",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Complete 2D RPG asset pipeline — character compositor, procedural map generator, and Godot 4.6 exporter. Built on Liberated Pixel Cup sprites.",
   "type": "module",
   "bin": {
@@ -78,6 +78,7 @@
     "eslint": "^9.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
+    "typescript-eslint": "8.57.1",
     "vitest": "^3.0.0"
   }
 }

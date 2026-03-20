@@ -166,7 +166,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       bodyType: 'female',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'light' },
-        { category: 'hair', subcategory: 'hair_plain', variant: 'auburn' },
+        { category: 'hair', subcategory: 'hair_plain', variant: 'strawberry' },
         { category: 'torso', subcategory: 'torso_clothes_robe', variant: 'white' },
         { category: 'weapons', subcategory: 'weapon_magic_loop', variant: 'light' },
       ],
@@ -179,7 +179,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       bodyType: 'female',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'bronze' },
-        { category: 'hair', subcategory: 'hair_ponytail', variant: 'brunette' },
+        { category: 'hair', subcategory: 'hair_ponytail', variant: 'chestnut' },
         { category: 'torso', subcategory: 'torso_armour_leather', variant: 'forest' },
         { category: 'legs', subcategory: 'legs_pants', variant: 'brown' },
         { category: 'feet', subcategory: 'feet_boots_basic', variant: 'brown' },
@@ -194,7 +194,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'light' },
-        { category: 'hair', subcategory: 'hair_plain', variant: 'brown' },
+        { category: 'hair', subcategory: 'hair_plain', variant: 'dark brown' },
         { category: 'torso', subcategory: 'torso_clothes_longsleeve', variant: 'maroon' },
         { category: 'legs', subcategory: 'legs_formal', variant: 'base' },
         { category: 'feet', subcategory: 'feet_shoes_basic', variant: 'brown' },
@@ -209,7 +209,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'light' },
-        { category: 'hair', subcategory: 'hair_plain', variant: 'brown' },
+        { category: 'hair', subcategory: 'hair_plain', variant: 'dark brown' },
         { category: 'torso', subcategory: 'torso_chainmail', variant: 'gray' },
         { category: 'legs', subcategory: 'legs_armour', variant: 'iron' },
         { category: 'feet', subcategory: 'feet_armour', variant: 'iron' },
@@ -236,7 +236,7 @@ export const PRESETS: Record<string, CharacterPreset> = {
       bodyType: 'male',
       layers: [
         { category: 'body', subcategory: 'body', variant: 'amber' },
-        { category: 'hair', subcategory: 'hair_messy1', variant: 'brown' },
+        { category: 'hair', subcategory: 'hair_messy1', variant: 'dark brown' },
         { category: 'torso', subcategory: 'torso_clothes_shortsleeve', variant: 'brown' },
         { category: 'legs', subcategory: 'legs_pants', variant: 'brown' },
         { category: 'feet', subcategory: 'feet_shoes_basic', variant: 'brown' },

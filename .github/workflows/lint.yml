@@ -1,35 +1,12 @@
-name: Lint
+# Linting is now handled by ci.yml — this file is kept empty to avoid confusion.
+# It will be removed in a future cleanup.
+name: Lint (deprecated)
 
 on:
-  push:
-    branches:
-      - master
-      - full_rewrite
-      - paint-in-place-for-real
-  pull_request:
-    branches:
-      - master
-      - full_rewrite
-      - paint-in-place-for-real
+  workflow_dispatch:
 
 jobs:
-  ci:
-    name: Lint
+  lint:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run ESLint
-        run: npx eslint . --ext .js
+      - run: echo "Linting is now part of the CI workflow. See ci.yml."
