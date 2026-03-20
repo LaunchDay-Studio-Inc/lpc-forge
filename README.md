@@ -6,13 +6,15 @@
 
 Characters · Maps · Enemy AI · Inventory · Dialog · Menus · SFX · Lighting · Particles · Godot 4.6
 
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-21+-green.svg)](https://nodejs.org)
-[![Godot](https://img.shields.io/badge/Godot-4.6+-purple.svg)](https://godotengine.org)
-[![CI](https://github.com/LaunchDay-Studio-Inc/lpc-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/LaunchDay-Studio-Inc/lpc-forge/actions)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/bJDGXc4DvW)
+[![Latest Release](https://img.shields.io/github/v/release/LaunchDay-Studio-Inc/lpc-forge?style=flat-square&color=orange&label=Release)](https://github.com/LaunchDay-Studio-Inc/lpc-forge/releases/latest)
+[![npm](https://img.shields.io/npm/v/lpc-forge?style=flat-square&color=red&label=npm)](https://www.npmjs.com/package/lpc-forge)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Godot](https://img.shields.io/badge/Godot-4.6+-478CBF?style=flat-square&logo=godotengine&logoColor=white)](https://godotengine.org)
+[![CI](https://img.shields.io/github/actions/workflow/status/LaunchDay-Studio-Inc/lpc-forge/ci.yml?style=flat-square&label=CI)](https://github.com/LaunchDay-Studio-Inc/lpc-forge/actions)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/bJDGXc4DvW)
 
-[Website](https://blueth.online) · [Get Premium](https://launchday.gumroad.com/l/lpc-forge-premium) · [Discord](https://discord.gg/bJDGXc4DvW) · [Report Bug](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues)
+[🌐 Website](https://blueth.online/products/lpc-forge) · [💰 Get Premium ($10)](https://launchday.gumroad.com/l/lpc-forge-premium) · [💬 Discord](https://discord.gg/bJDGXc4DvW) · [🐛 Report Bug](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues) · [📋 Changelog](https://github.com/LaunchDay-Studio-Inc/lpc-forge/releases)
 
 </div>
 
@@ -20,7 +22,7 @@ Characters · Maps · Enemy AI · Inventory · Dialog · Menus · SFX · Lightin
 
 ## What is LPC Forge?
 
-LPC Forge generates **playable 2D RPG projects** for Godot 4.6 using [Liberated Pixel Cup](https://lpc.opengameart.org/) assets. Not just sprites — complete game projects with working systems you can customize.
+LPC Forge generates **playable 2D RPG projects** for [Godot 4.6](https://godotengine.org) using [Liberated Pixel Cup](https://lpc.opengameart.org/) assets. Not just sprites — complete game projects with working systems you can customize.
 
 **Free tier** gives you characters, maps, and a basic playable project.
 **Premium** ($10) gives you the full RPG game kit — inventory, dialog, enemy AI, menus, save/load, sound effects, lighting, particles, and more. All from one command.
@@ -37,23 +39,51 @@ Open in Godot → Press F5 → **Play.**
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
+
+### Option 1: npm (recommended)
 
 ```bash
-# Clone and install
+npm install -g lpc-forge
+lpc-forge init my-rpg
+```
+
+### Option 2: Clone from source
+
+```bash
 git clone https://github.com/LaunchDay-Studio-Inc/lpc-forge.git
 cd lpc-forge
 npm install && npm run build
-
-# Generate a free project
 npx lpc-forge init my-rpg
-
-# Open in Godot 4.6 → Import → Select my-rpg/project.godot → Press F5
 ```
+
+Then open in **Godot 4.6** → Import → Select `my-rpg/project.godot` → Press **F5**.
+
+> **Requirements:** Node.js 18+ · Godot 4.6+ (for playing generated projects)
 
 ---
 
-## Free vs Premium
+## 📸 Gallery
+
+<div align="center">
+
+| Characters | Maps | UI Kit |
+|:---:|:---:|:---:|
+| ![Characters](https://blueth.online/images/lpc-forge/warrior-spritesheet.png) | ![Maps](https://blueth.online/images/lpc-forge/dungeon-map.png) | ![UI Kit](https://blueth.online/images/lpc-forge/ui-kit.png) |
+| 30+ presets with walk, attack, idle animations | Dungeons, caves, overworld, towns | Panels, bars, buttons, frames, slots |
+
+| Item Icons | Particles | Godot Project |
+|:---:|:---:|:---:|
+| ![Icons](https://blueth.online/images/lpc-forge/icons-atlas.png) | ![Particles](https://blueth.online/images/lpc-forge/particles-preview.png) | ![Godot](https://blueth.online/images/lpc-forge/godot-project.png) |
+| 20 RPG item icons | 8 particle effects | Press F5 and play |
+
+</div>
+
+👉 **[See the full interactive showcase →](https://blueth.online/products/lpc-forge)**
+
+---
+
+## 🆓 Free vs 💎 Premium
 
 | Feature | Free | Premium ($10) |
 |---------|:----:|:-------------:|
@@ -84,7 +114,7 @@ npx lpc-forge init my-rpg
 | **Autoload Wiring** (systems auto-registered in project.godot) | — | ✅ |
 | **Input Actions** (inventory, interact, pause, quest log pre-configured) | — | ✅ |
 
-### Get Premium
+### 💎 Get Premium
 
 ```bash
 # 1. Purchase at https://launchday.gumroad.com/l/lpc-forge-premium
@@ -95,11 +125,11 @@ lpc-forge activate <your-license-key>
 lpc-forge init my-rpg --full
 ```
 
-$10. One-time purchase. Unlimited projects. No subscription.
+**$10 · One-time · Unlimited projects · No subscription**
 
 ---
 
-## Commands
+## 📖 Commands
 
 ### Free Commands
 
@@ -152,7 +182,7 @@ lpc-forge activate --deactivate   # Remove license
 
 ---
 
-## What `init --full` Generates
+## 📁 What `init --full` Generates
 
 ```
 my-rpg/
@@ -197,30 +227,7 @@ my-rpg/
 
 ---
 
-## Character Presets
-
-| Preset | Layers | Style |
-|--------|--------|-------|
-| `warrior` | Plate armor, longsword, brown hair | Classic RPG fighter |
-| `mage` | Robe, staff, white hair | Spellcaster |
-| `rogue` | Leather armor, dagger, black hair | Stealth class |
-| `ranger` | Leather, bow, green hood | Ranged fighter |
-| `paladin` | Gold plate, greatsword, blonde hair | Holy knight |
-| `necromancer` | Dark robe, skull staff, bald | Dark magic |
-| `cleric` | White robe, mace, brown hair | Healer |
-| `barbarian` | Fur armor, battleaxe, red hair | Berserker |
-| `monk` | Simple clothes, bo staff, shaved head | Martial arts |
-| `bard` | Fancy clothes, lute, curly hair | Support class |
-| ...and 7 more | | |
-
-```bash
-# See all presets
-lpc-forge list
-```
-
----
-
-## Map Types
+## 🗺️ Map Types
 
 | Type | Algorithm | Features |
 |------|-----------|----------|
@@ -237,25 +244,60 @@ lpc-forge map --type dungeon --width 60 --height 60 --seed "my-dungeon" -o ./out
 
 ---
 
-## License & Credits
+## 🎭 Character Presets
+
+| Preset | Layers | Style |
+|--------|--------|-------|
+| `warrior` | Plate armor, longsword, brown hair | Classic RPG fighter |
+| `mage` | Robe, staff, white hair | Spellcaster |
+| `rogue` | Leather armor, dagger, black hair | Stealth class |
+| `ranger` | Leather, bow, green hood | Ranged fighter |
+| `paladin` | Gold plate, greatsword, blonde hair | Holy knight |
+| `necromancer` | Dark robe, skull staff, bald | Dark magic |
+| `cleric` | White robe, mace, brown hair | Healer |
+| `barbarian` | Fur armor, battleaxe, red hair | Berserker |
+| `monk` | Simple clothes, bo staff, shaved head | Martial arts |
+| `bard` | Fancy clothes, lute, curly hair | Support class |
+| ...and 7 more | | |
+
+```bash
+lpc-forge list          # See all presets
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- **Runtime:** [Node.js](https://nodejs.org) 18+
+- **Game Engine:** [Godot 4.6](https://godotengine.org)
+- **Assets:** [Liberated Pixel Cup](https://lpc.opengameart.org/) (CC-BY-SA 3.0/4.0)
+- **Maps:** [rot.js](https://ondras.github.io/rot.js/) algorithms (BSP, cellular automata, noise)
+- **Images:** [Sharp](https://sharp.pixelplumbing.com/) for compositing
+- **Audio:** [Tone.js](https://tonejs.github.io/) for procedural SFX synthesis
+- **Website:** [Next.js](https://nextjs.org) 16 + [Tailwind CSS](https://tailwindcss.com) v4 — [blueth.online](https://blueth.online)
+- **CI:** GitHub Actions
+
+---
+
+## 📜 License & Credits
 
 ### Tool License
 
-LPC Forge (the CLI tool) is licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE).
+LPC Forge (the CLI tool) is licensed under **[GPL-3.0-or-later](LICENSE)**.
 
 ### Asset Licenses
 
 Character sprites use [Liberated Pixel Cup](https://lpc.opengameart.org/) assets under **CC-BY-SA 3.0** and **CC-BY-SA 4.0**. Full artist credits in [CREDITS.csv](CREDITS.csv).
 
-Premium assets include curated content from OpenGameArt.org under CC0/CC-BY-SA licenses. When distributing games made with LPC Forge, include the generated `CREDITS.md` file.
+Premium assets include curated content from [OpenGameArt.org](https://opengameart.org) under CC0/CC-BY-SA licenses. When distributing games made with LPC Forge, include the generated `CREDITS.md` file.
 
 ### Premium License
 
-LPC Forge Premium (the `--full` content pack, game systems, SFX presets, and curated assets) is sold separately at [blueth.online](https://launchday.gumroad.com/l/lpc-forge-premium). One-time purchase, unlimited projects, no subscription.
+LPC Forge Premium is sold at **[blueth.online](https://blueth.online/products/lpc-forge)**. One-time purchase, unlimited projects, no subscription.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome for the open-source core — character presets, map algorithms, export improvements.
 
@@ -263,12 +305,18 @@ Premium features (systems, SFX, UI, lighting, particles) are maintained by [Laun
 
 ---
 
-## Links
+## 🔗 Links
 
-- 🌐 [blueth.online](https://blueth.online) — Blueth Plugin Marketplace
-- 💬 [Discord](https://discord.gg/bJDGXc4DvW) — Community & Support
-- 🐛 [Issues](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues) — Bug Reports
-- 📖 [LPC Wiki](https://lpc.opengameart.org/) — Liberated Pixel Cup
+| | |
+|---|---|
+| 🌐 **Website** | [blueth.online/products/lpc-forge](https://blueth.online/products/lpc-forge) |
+| 💬 **Discord** | [discord.gg/bJDGXc4DvW](https://discord.gg/bJDGXc4DvW) |
+| 📦 **npm** | [npmjs.com/package/lpc-forge](https://www.npmjs.com/package/lpc-forge) |
+| 📋 **Changelog** | [Releases](https://github.com/LaunchDay-Studio-Inc/lpc-forge/releases) |
+| 🐛 **Issues** | [Bug Reports](https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues) |
+| 📖 **LPC Wiki** | [lpc.opengameart.org](https://lpc.opengameart.org/) |
+| 🎮 **Godot Engine** | [godotengine.org](https://godotengine.org) |
+| 📚 **Docs** | [blueth.online/docs](https://blueth.online/docs) |
 
 ---
 
