@@ -10,7 +10,6 @@ signal transition_midpoint
 signal transition_finished
 
 @onready var color_rect: ColorRect = $ColorRect
-@onready var anim_player: AnimationPlayer = $AnimationPlayer
 
 var _target_scene := ""
 var _is_transitioning := false

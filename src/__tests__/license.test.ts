@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { writeFile, mkdir, unlink, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -11,6 +11,7 @@ describe('License Security', () => {
   let existingLicense: string | null = null;
 
   beforeEach(async () => {
+    vi.resetModules();
     try {
       existingLicense = await readFile(LICENSE_FILE, 'utf-8');
     } catch {
@@ -125,5 +126,12 @@ describe('License Security', () => {
     const { deactivateLicense } = await import('../license.js');
     // Should not throw
     await expect(deactivateLicense()).resolves.toBeUndefined();
+  });
+
+  it('should report no license when none exists', async () => {
+    const { hasValidLicense } = await import('../license.js');
+    // In test environment, no license file should exist
+    const valid = await hasValidLicense();
+    expect(typeof valid).toBe('boolean');
   });
 });

@@ -15,6 +15,7 @@ var game_hour := 8
 var game_minute := 0
 var _elapsed := 0.0
 var _current_period := ""
+var _sorted_time_keys: Array
 
 const COLORS := {
 \t0: Color(0.1, 0.1, 0.2),    # Midnight
@@ -30,6 +31,8 @@ const COLORS := {
 
 func _ready() -> void:
 \tgame_hour = start_hour
+\t_sorted_time_keys = COLORS.keys()
+\t_sorted_time_keys.sort()
 \t_update_color()
 
 func _process(delta: float) -> void:
@@ -48,7 +51,7 @@ func _process(delta: float) -> void:
 \t\tperiod_changed.emit(period)
 
 func _update_color() -> void:
-\tvar hours := sorted_keys()
+\tvar hours := _sorted_time_keys
 \tvar prev_hour := hours[hours.size() - 1]
 \tvar next_hour := hours[0]
 

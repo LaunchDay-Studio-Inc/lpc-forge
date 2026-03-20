@@ -1,5 +1,5 @@
 import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { TileType } from '../map/types.js';
 import { createColorTile } from '../utils/image.js';
 

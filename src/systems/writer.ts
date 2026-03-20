@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import type { GameSystem } from './types.js';
 import { getSystemsInOrder } from './index.js';
 
@@ -23,9 +23,15 @@ export async function writeGameSystems(
   const allAutoloads: { name: string; path: string }[] = [];
   const allInputActions = new Set<string>();
 
+  const resolvedBase = resolve(outputDir);
+
   for (const system of systems) {
     for (const file of system.files) {
       const fullPath = join(outputDir, file.path);
+      const resolvedFull = resolve(fullPath);
+      if (!resolvedFull.startsWith(resolvedBase + '/') && resolvedFull !== resolvedBase) {
+        throw new Error(`System file path "${file.path}" resolves outside output directory`);
+      }
       await mkdir(dirname(fullPath), { recursive: true });
       await writeFile(fullPath, file.content);
       filesWritten++;

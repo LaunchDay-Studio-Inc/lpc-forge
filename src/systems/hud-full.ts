@@ -15,6 +15,8 @@ var gold := 0
 func _ready() -> void:
 \tvar player := _find_player()
 \tif player:
+\t\t# Runtime check: GDScript has no compile-time signal verification,
+\t\t# so we verify the signal exists before connecting.
 \t\tif player.has_signal("health_changed"):
 \t\t\tplayer.health_changed.connect(_on_health_changed)
 

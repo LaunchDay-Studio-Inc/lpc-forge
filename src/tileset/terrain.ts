@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import type { GeneratedMap } from '../map/types.js';
 import { loadTileset, tileTypeToName, type TilesetManifest } from './registry.js';
 
@@ -22,7 +22,8 @@ export async function renderMap(
       const buf = await readFile(join(tilesetDir, fileName));
       tileBuffers[name] = buf;
     } catch {
-      // Skip missing tiles
+      // Skip missing tiles — log path for debugging
+      console.warn(`Warning: Could not load tile image: ${join(tilesetDir, fileName)}`);
     }
   }
 
@@ -46,7 +47,7 @@ export async function renderMap(
   }
 
   // Sharp has a practical limit on composites, batch if needed
-  await mkdir(join(outputPath, '..'), { recursive: true });
+  await mkdir(dirname(outputPath), { recursive: true });
 
   // If map is large, render in row strips
   if (composites.length > 5000) {

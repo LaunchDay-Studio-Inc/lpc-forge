@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 export interface AtlasResult {
   imagePath: string;
@@ -38,11 +38,12 @@ export async function buildAtlas(
       composites.push({ input: buf, top: y, left: x });
       positions[name] = { x, y, width: tileSize, height: tileSize };
     } catch {
-      // Skip missing tiles
+      // Skip missing tiles — log path for debugging
+      console.warn(`Warning: Could not load tile image: ${filePath}`);
     }
   }
 
-  await mkdir(join(outputPath, '..'), { recursive: true });
+  await mkdir(dirname(outputPath), { recursive: true });
 
   const atlasBuffer = await sharp({
     create: {

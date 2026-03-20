@@ -6,6 +6,14 @@ import { SFX_PRESETS } from './sfx-presets.js';
 
 const require = createRequire(import.meta.url);
 
+// Load jsfxr at module level — fail early with a helpful message
+let jsfxr: { Params: new () => Record<string, number>; SoundEffect: new (p: Record<string, number>) => { generate: () => { dataURI: string } } };
+try {
+  jsfxr = require('jsfxr');
+} catch {
+  throw new Error('jsfxr package is required for SFX generation. Install it with: npm install jsfxr');
+}
+
 /** Parameter array index to Params field mapping */
 const PARAM_FIELDS = [
   'wave_type', 'p_env_attack', 'p_env_sustain', 'p_env_punch',
@@ -21,17 +29,15 @@ const PARAM_FIELDS = [
  * Uses SoundEffect + Params from jsfxr to produce a RIFFWAVE with a data URI.
  */
 function generateWavBuffer(params: number[]): Buffer {
-  const { Params, SoundEffect } = require('jsfxr');
-
-  const p = new Params();
+  const p = new jsfxr.Params();
   for (let i = 0; i < params.length && i < PARAM_FIELDS.length; i++) {
     (p as Record<string, number>)[PARAM_FIELDS[i]] = params[i];
   }
 
-  const se = new SoundEffect(p);
+  const se = new jsfxr.SoundEffect(p);
   const wav = se.generate();
   const dataUri: string = wav.dataURI;
-  const base64Data = dataUri.split(',')[1];
+  const base64Data = dataUri.substring(dataUri.indexOf(',') + 1);
   if (!base64Data) {
     throw new Error('jsfxr returned invalid data URI');
   }
@@ -46,7 +52,7 @@ export async function generateSfx(
   const categoryDir = join(outputDir, preset.category);
   await mkdir(categoryDir, { recursive: true });
 
-  const filename = preset.name.toLowerCase().replaceAll(/\s+/g, '_') + '.wav';
+  const filename = preset.name.toLowerCase().replace(/\s+/g, '_') + '.wav';
   const outputPath = join(categoryDir, filename);
 
   const wavBuffer = generateWavBuffer(preset.params);

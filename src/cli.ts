@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { IconEntry } from './ui/types.js';
 import { resolveAssetRoot, ensureAssets } from './assets/manager.js';
+// TODO: Consider extracting shared chalk/ora lazy-loading utility for CLI commands
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(__dirname, '..');

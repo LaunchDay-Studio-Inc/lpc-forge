@@ -42,7 +42,6 @@ func save_game(slot: int) -> bool:
 
 \tvar json := JSON.stringify(save_data, "  ")
 \tfile.store_string(json)
-\tfile.close()
 \tcurrent_slot = slot
 \tgame_saved.emit(slot)
 \treturn true
@@ -113,10 +112,9 @@ func _gather_save_data() -> Dictionary:
 \t\t}
 \t\tdata["scene"] = player.get_tree().current_scene.scene_file_path
 
-\tif Engine.has_singleton("Inventory") or get_node_or_null("/root/Inventory"):
-\t\tvar inv := get_node_or_null("/root/Inventory")
-\t\tif inv and inv.has_method("save_data"):
-\t\t\tdata["inventory"] = inv.save_data()
+\tvar inv := get_node_or_null("/root/Inventory")
+\tif inv and inv.has_method("save_data"):
+\t\tdata["inventory"] = inv.save_data()
 
 \treturn data
 

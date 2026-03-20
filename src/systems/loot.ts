@@ -44,7 +44,7 @@ func roll_loot(table_name: String) -> Array:
 \tfor entry in table:
 \t\ttotal_weight += entry.get("weight", 0)
 
-\tvar roll := randi() % total_weight
+\tvar roll := randi_range(0, total_weight - 1)
 \tvar cumulative := 0
 \tfor entry in table:
 \t\tcumulative += entry.get("weight", 0)

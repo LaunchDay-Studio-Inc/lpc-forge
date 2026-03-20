@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import type { LayerDefinition, LayerEntry } from './types.js';
 
 export interface DefinitionRegistry {
@@ -88,7 +88,7 @@ async function parseDefinitionFile(
   if (layers.length === 0) return null;
 
   // Derive a subcategory key from the filename
-  const fileName = filePath.split('/').pop()!.replace('.json', '');
+  const fileName = basename(filePath, '.json');
 
   return {
     name: `${category}/${fileName}`,
@@ -129,9 +129,10 @@ export function findDefinition(
     return registry.definitions.get(exactKey);
   }
 
-  // Try partial matching
+  // Try partial matching — use exact path component matching
   for (const [key, def] of registry.definitions) {
-    if (key.startsWith(category + '/') && key.includes(subcategory)) {
+    if (key.startsWith(category + '/') &&
+        (key.split('/').some(part => part === subcategory) || key.endsWith('/' + subcategory))) {
       return def;
     }
   }

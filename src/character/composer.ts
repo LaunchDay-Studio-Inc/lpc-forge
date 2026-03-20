@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { existsSync } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   type CharacterSpec,
@@ -11,6 +11,14 @@ import {
   ANIMATION_FOLDER_MAP,
 } from './types.js';
 import { loadDefinitions, findDefinition, listLayers } from './definitions.js';
+
+/** Fallback chains when a layer has no path for the requested body type */
+const BODY_TYPE_FALLBACKS: Record<string, string[]> = {
+  muscular: ['male'],
+  pregnant: ['female'],
+  teen: ['male', 'female'],
+  child: ['teen', 'male'],
+};
 
 export interface ComposeOptions {
   verbose?: boolean;
@@ -162,15 +170,7 @@ function findFallbackBodyType(
   paths: Record<string, string>,
   bodyType: string,
 ): string | null {
-  // Fallback chain
-  const fallbacks: Record<string, string[]> = {
-    muscular: ['male'],
-    pregnant: ['female'],
-    teen: ['male', 'female'],
-    child: ['teen', 'male'],
-  };
-
-  const chain = fallbacks[bodyType] ?? [];
+  const chain = BODY_TYPE_FALLBACKS[bodyType] ?? [];
   for (const fb of chain) {
     if (paths[fb]) return paths[fb];
   }
@@ -214,10 +214,10 @@ async function buildUniversalSheet(
     // Try to find the animation PNG
     const animPath = join(spritesDir, layer.basePath, folderName, `${variantFile}.png`);
 
-    if (!existsSync(animPath)) {
+    if (!(await fileExists(animPath))) {
       // Also try without folder mapping
       const altPath = join(spritesDir, layer.basePath, animName, `${variantFile}.png`);
-      if (existsSync(altPath)) {
+      if (await fileExists(altPath)) {
         try {
           const buf = await sharp(altPath).png().toBuffer();
           composites.push({
@@ -257,4 +257,14 @@ async function buildUniversalSheet(
     .png()
     .composite(composites)
     .toBuffer();
+}
+
+/** Check if a file exists using async access */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }

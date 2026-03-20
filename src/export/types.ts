@@ -1,3 +1,5 @@
+// These interfaces are currently unused but retained for potential future public API use.
+// The actual export functions define their options inline.
 export interface GodotExportOptions {
   characterName: string;
   outputDir: string;

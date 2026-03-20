@@ -64,7 +64,7 @@ function parseCSVLine(line: string): string[] {
 /** Generate a credits text file for used layers */
 export function generateCreditsText(credits: CreditEntry[], usedPaths: string[]): string {
   const relevant = credits.filter((c) =>
-    usedPaths.some((p) => p.includes(c.file) || c.file.includes(p)),
+    usedPaths.some((p) => p === c.file || p.endsWith('/' + c.file) || c.file.endsWith('/' + p)),
   );
 
   if (relevant.length === 0) {

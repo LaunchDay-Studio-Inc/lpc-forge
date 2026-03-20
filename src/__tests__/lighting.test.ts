@@ -73,12 +73,3 @@ describe('Particle Presets', () => {
     expect(preset.scene).toContain('amount = 200');
   });
 });
-
-describe('License', () => {
-  it('should report no license when none exists', async () => {
-    const { hasValidLicense } = await import('../license.js');
-    // In test environment, no license file should exist
-    const valid = await hasValidLicense();
-    expect(typeof valid).toBe('boolean');
-  });
-});

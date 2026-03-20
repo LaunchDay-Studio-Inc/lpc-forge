@@ -91,6 +91,12 @@ func _process_chase(delta: float) -> void:
 \t\ttarget = null
 \t\t_change_state(State.IDLE)
 \t\treturn
+\t# Leash: stop chasing if target moves too far from detection range
+\tvar chase_leash := detection_range * 2.0
+\tif global_position.distance_to(target.global_position) > chase_leash:
+\t\ttarget = null
+\t\t_change_state(State.IDLE)
+\t\treturn
 \tif float(health) / float(max_health) <= flee_health_pct:
 \t\t_change_state(State.FLEE)
 \t\treturn

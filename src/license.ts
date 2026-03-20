@@ -135,11 +135,11 @@ export async function hasValidLicense(): Promise<boolean> {
       return false;
     }
 
-    // Periodic re-validation (every 30 days)
+    // Periodic re-validation (every 7 days)
     const lastVerified = new Date(license.lastVerifiedAt);
     const daysSinceVerify = (Date.now() - lastVerified.getTime()) / 86400000;
 
-    if (daysSinceVerify > 30) {
+    if (daysSinceVerify > 7) {
       // Try to re-verify online, but don't block on failure
       const revalidated = await revalidateOnline(license);
       if (revalidated === 'invalid') {
@@ -193,6 +193,8 @@ async function revalidateOnline(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
+        // Gumroad product ID — necessarily in source for client-side verification.
+        // Server-side proxy would be more secure but adds infrastructure dependency.
         product_id: '-2jxD5LR4p_tXnvxMiWU7g==',
         license_key: license.key,
         increment_uses_count: 'false', // Don't increment on re-validation
@@ -231,6 +233,7 @@ async function loadLicense(): Promise<LicenseInfo | null> {
 async function storeLicense(license: LicenseInfo): Promise<void> {
   const stored: StoredLicense = { ...license, _v: 2 };
   await mkdir(LICENSE_DIR, { recursive: true });
+  // mode 0o600 is Unix-only; Windows ignores this (file permissions managed by ACLs)
   await writeFile(LICENSE_FILE, JSON.stringify(stored, null, 2), { mode: 0o600 });
 }
 

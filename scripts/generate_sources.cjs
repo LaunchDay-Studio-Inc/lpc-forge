@@ -15,6 +15,18 @@ const itemMetadata = {};
 const aliasMetadata = {};
 const categoryTree = { items: [], children: {} };
 
+/** Deep equality check using sorted-key JSON serialization for stable comparison */
+function deepEqual(a, b) {
+  return stableStringify(a) === stableStringify(b);
+}
+
+function stableStringify(obj) {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
+}
+
 function searchCredit(fileName, credits, origFileName) {
   if (credits.length <= 0) {
     console.error("no credits for filename:", fileName);
@@ -282,10 +294,10 @@ function parseJson(filePath, fileName) {
               `file name set for ${sex} is ${imageFileName} for layer ${jdx}`
             );
           if (creditToUse !== undefined) {
-            // comparing via JSON.stringify is faster than node-deep-equal library
+            // comparing via sorted-key JSON.stringify for stable deep equality
             if (
               listCreditToUse !== null &&
-              JSON.stringify(listCreditToUse) !== JSON.stringify(creditToUse)
+              !deepEqual(listCreditToUse, creditToUse)
             ) {
               // do nothing
             } else if (listCreditToUse === null) {

@@ -6,12 +6,13 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import {
-  mkdir, readFile, writeFile, rm, stat, readdir, cp,
+  mkdir, readFile, writeFile, rm, stat, readdir, cp, rename,
 } from 'node:fs/promises';
+import { lstat, readlink } from 'node:fs/promises';
 import { get as httpsGet } from 'node:https';
 import { get as httpGet, type IncomingMessage } from 'node:http';
 import { homedir, platform, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { createInterface } from 'node:readline';
@@ -19,6 +20,35 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+
+const PLATFORM = platform();
+
+const MAX_TOTAL_DOWNLOAD_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+const MAX_CHUNK_SIZE = 500 * 1024 * 1024; // 500 MB
+
+const ALLOWED_REDIRECT_HOSTS = [
+  'github.com',
+  'objects.githubusercontent.com',
+  'api.github.com',
+  'codeload.github.com',
+];
+
+/** Walk extracted tree and reject symlinks pointing outside the asset directory */
+async function rejectExternalSymlinks(dir: string): Promise<void> {
+  const resolvedDir = resolve(dir);
+  const entries = await readdir(dir, { withFileTypes: true, recursive: true });
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) {
+      const fullPath = join(entry.parentPath ?? entry.path, entry.name);
+      const target = await readlink(fullPath);
+      const resolvedTarget = resolve(join(entry.parentPath ?? entry.path, entry.name, '..'), target);
+      if (!resolvedTarget.startsWith(resolvedDir)) {
+        await rm(fullPath, { force: true });
+        console.warn(`Removed symlink pointing outside asset dir: ${fullPath} → ${target}`);
+      }
+    }
+  }
+}
 
 // ──────────────────────────────────────────────
 // Types
@@ -61,10 +91,17 @@ const LOCAL_MANIFEST = '.lpc-forge-manifest.json';
 /** Platform-aware asset cache directory */
 export function getAssetDir(): string {
   if (process.env.LPC_FORGE_ASSETS) {
-    return resolve(process.env.LPC_FORGE_ASSETS);
+    const resolved = resolve(process.env.LPC_FORGE_ASSETS);
+    const home = homedir();
+    // Validate path is within user home or common data directories
+    if (!resolved.startsWith(home) && !resolved.startsWith('/tmp') && !resolved.startsWith(tmpdir())) {
+      console.warn(`LPC_FORGE_ASSETS path "${resolved}" is outside user home directory — using default location`);
+    } else {
+      return resolved;
+    }
   }
 
-  const p = platform();
+  const p = PLATFORM;
   if (p === 'darwin') {
     return join(homedir(), 'Library', 'Application Support', 'lpc-forge', 'assets');
   }
@@ -118,6 +155,10 @@ export async function isAssetsInstalled(version?: string): Promise<{
     const raw = await readFile(manifestPath, 'utf-8');
     const manifest: LocalManifest = JSON.parse(raw);
 
+    if (!manifest || typeof manifest.version !== 'string' || !Array.isArray(manifest.chunks)) {
+      return { installed: false, path: assetDir };
+    }
+
     // Check if critical directories actually exist
     const hasSpritesheets = existsSync(join(assetDir, 'spritesheets'));
     const hasDefinitions = existsSync(join(assetDir, 'sheet_definitions'));
@@ -158,13 +199,34 @@ function followRedirects(url: string, maxRedirects = 5): Promise<IncomingMessage
       return;
     }
 
-    const getter = url.startsWith('https') ? httpsGet : httpGet;
+    const isHttps = url.startsWith('https');
+    const getter = isHttps ? httpsGet : httpGet;
     const req = getter(url, {
       headers: { 'User-Agent': 'lpc-forge-cli' },
     }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        res.resume(); // drain the response
-        followRedirects(res.headers.location, maxRedirects - 1).then(resolve, reject);
+        res.resume();
+        const redirectUrl = res.headers.location;
+
+        // HIGH-003: Reject HTTPS→HTTP downgrade
+        if (isHttps && redirectUrl.startsWith('http:')) {
+          reject(new Error(`Refusing HTTPS→HTTP downgrade redirect to ${redirectUrl}`));
+          return;
+        }
+
+        // HIGH-002: Validate redirect target against allowlist
+        try {
+          const redirectHost = new URL(redirectUrl).hostname;
+          if (!ALLOWED_REDIRECT_HOSTS.some(h => redirectHost === h || redirectHost.endsWith('.' + h))) {
+            reject(new Error(`Redirect to untrusted host: ${redirectHost}`));
+            return;
+          }
+        } catch {
+          reject(new Error(`Invalid redirect URL: ${redirectUrl}`));
+          return;
+        }
+
+        followRedirects(redirectUrl, maxRedirects - 1).then(resolve, reject);
         return;
       }
       if (res.statusCode && res.statusCode >= 400) {
@@ -190,7 +252,7 @@ async function downloadToFileWithRetry(
       return;
     } catch (err) {
       if (attempt === retries) throw err;
-      await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+      await new Promise(r => setTimeout(r, 3000 * (attempt + 1) * (0.5 + Math.random())));
     }
   }
 }
@@ -203,9 +265,9 @@ async function downloadToFile(
   const res = await followRedirects(url);
   const total = res.headers['content-length'] ? parseInt(res.headers['content-length'], 10) : null;
 
-  await mkdir(join(destPath, '..'), { recursive: true });
+  await mkdir(dirname(destPath), { recursive: true });
 
-  const tmpPath = destPath + '.tmp';
+  const tmpPath = `${destPath}.tmp.${process.pid}.${Date.now()}`;
   const ws = createWriteStream(tmpPath);
 
   let downloaded = 0;
@@ -217,7 +279,6 @@ async function downloadToFile(
   try {
     await pipeline(res, ws);
     // Atomic rename from tmp to final
-    const { rename } = await import('node:fs/promises');
     await rename(tmpPath, destPath);
   } catch (err) {
     // Clean up partial file
@@ -239,11 +300,20 @@ async function computeSha256(filePath: string): Promise<string> {
 // Manifest fetching
 // ──────────────────────────────────────────────
 
+const MAX_JSON_BODY_SIZE = 50 * 1024 * 1024; // 50 MB
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await followRedirects(url);
   const chunks: Buffer[] = [];
+  let totalSize = 0;
   for await (const chunk of res) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+    totalSize += buf.length;
+    if (totalSize > MAX_JSON_BODY_SIZE) {
+      res.destroy();
+      throw new Error(`Response body exceeds ${MAX_JSON_BODY_SIZE / (1024 * 1024)} MB limit`);
+    }
+    chunks.push(buf);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf-8')) as T;
 }
@@ -263,11 +333,19 @@ export async function fetchRemoteManifest(version?: string): Promise<AssetManife
         `The release may not have been packaged correctly.`,
       );
     }
-    return fetchJson<AssetManifest>(manifestAsset.browser_download_url);
+    const manifest = await fetchJson<AssetManifest>(manifestAsset.browser_download_url);
+    if (!manifest.version || !Array.isArray(manifest.chunks)) {
+      throw new Error('Invalid asset manifest: missing required fields');
+    }
+    return manifest;
   }
 
   const url = `https://github.com/${GITHUB_REPO}/releases/download/${tag}/${MANIFEST_FILENAME}`;
-  return fetchJson<AssetManifest>(url);
+  const manifest = await fetchJson<AssetManifest>(url);
+  if (!manifest.version || !Array.isArray(manifest.chunks)) {
+    throw new Error('Invalid asset manifest: missing required fields');
+  }
+  return manifest;
 }
 
 // ──────────────────────────────────────────────
@@ -301,7 +379,7 @@ async function downloadAssetsViaGitClone(
     );
   }
 
-  const cloneDir = join(tmpdir(), `lpc-forge-clone-${Date.now()}`);
+  const cloneDir = join(tmpdir(), `lpc-forge-clone-${process.pid}-${Date.now()}`);
 
   try {
     await mkdir(assetDir, { recursive: true });
@@ -311,7 +389,16 @@ async function downloadAssetsViaGitClone(
       'clone', '--depth', '1',
       `https://github.com/${GITHUB_REPO}.git`,
       cloneDir,
-    ], { timeout: 600_000 }); // 10 minute timeout
+    ], { timeout: 1_200_000 }); // 20 minute timeout
+
+    // Verify clone has expected structure
+    const { access: fsAccess } = await import('node:fs/promises');
+    try {
+      await fsAccess(join(cloneDir, 'spritesheets'));
+      await fsAccess(join(cloneDir, 'sheet_definitions'));
+    } catch {
+      throw new Error('Git clone completed but expected directories (spritesheets/, sheet_definitions/) are missing. The repository may have changed structure.');
+    }
 
     // Copy needed directories
     if (options.minimal) {
@@ -323,6 +410,8 @@ async function downloadAssetsViaGitClone(
       await cp(join(cloneDir, 'spritesheets'), join(assetDir, 'spritesheets'), { recursive: true });
       await cp(join(cloneDir, 'sheet_definitions'), join(assetDir, 'sheet_definitions'), { recursive: true });
     }
+
+    console.warn('Note: Git clone fallback does not verify asset checksums. For verified downloads, use GitHub Releases.');
 
     // Write local manifest
     const localManifest: LocalManifest = {
@@ -364,7 +453,16 @@ export interface DownloadProgress {
 }
 
 export async function downloadAssets(options: DownloadOptions = {}): Promise<void> {
-  const assetDir = options.path ? resolve(options.path) : getAssetDir();
+  let assetDir: string;
+  if (options.path) {
+    assetDir = resolve(options.path);
+    const home = homedir();
+    if (!assetDir.startsWith(home) && !assetDir.startsWith('/tmp') && !assetDir.startsWith(tmpdir())) {
+      throw new Error(`Asset path "${assetDir}" must be within user-accessible directories`);
+    }
+  } else {
+    assetDir = getAssetDir();
+  }
 
   // Check available disk space (best-effort)
   await checkDiskSpace(assetDir);
@@ -388,6 +486,16 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
   }
 
   const totalSize = chunks.reduce((s, c) => s + c.size, 0);
+
+  if (totalSize > MAX_TOTAL_DOWNLOAD_SIZE) {
+    throw new Error(`Total download size ${formatBytes(totalSize)} exceeds maximum allowed (${formatBytes(MAX_TOTAL_DOWNLOAD_SIZE)})`);
+  }
+  for (const c of chunks) {
+    if (c.size > MAX_CHUNK_SIZE) {
+      throw new Error(`Chunk "${c.name}" size ${formatBytes(c.size)} exceeds maximum allowed (${formatBytes(MAX_CHUNK_SIZE)})`);
+    }
+  }
+
   let overallDownloaded = 0;
 
   // 3. Download and extract each chunk
@@ -451,7 +559,8 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
       totalChunks: chunks.length,
     });
 
-    await execFileAsync('tar', ['xzf', archivePath, '-C', assetDir]);
+    await execFileAsync('tar', ['xzf', archivePath, '-C', assetDir, '--no-same-owner']);
+    await rejectExternalSymlinks(assetDir);
 
     // Remove archive after extraction to save space
     await rm(archivePath, { force: true });
@@ -465,9 +574,11 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
   if (!hasSpritesheets || !hasDefinitions) {
     // Clean up and throw — don't leave a broken install
     await rm(join(assetDir, LOCAL_MANIFEST), { force: true });
+    const home = homedir();
+    const displayDir = assetDir.startsWith(home) ? assetDir.replace(home, '~') : assetDir;
     throw new Error(
       'Asset extraction completed but expected directories are missing.\n' +
-      `  Expected: ${join(assetDir, 'spritesheets/')} and ${join(assetDir, 'sheet_definitions/')}\n` +
+      `  Expected: ${join(displayDir, 'spritesheets/')} and ${join(displayDir, 'sheet_definitions/')}\n` +
       '  This indicates a packaging issue. Please report at:\n' +
       '  https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues'
     );
@@ -493,8 +604,27 @@ async function checkDiskSpace(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
 
   try {
-    // Use df on Unix-like systems
-    if (platform() !== 'win32') {
+    if (PLATFORM === 'win32') {
+      try {
+        const { stdout } = await execFileAsync('powershell', [
+          '-Command',
+          `(Get-PSDrive -Name (Split-Path -Qualifier '${dir.replace(/'/g, "''")}').TrimEnd(':')).Free`,
+        ]);
+        const freeBytes = parseInt(stdout.trim(), 10);
+        if (!isNaN(freeBytes)) {
+          const availMB = freeBytes / (1024 * 1024);
+          if (availMB < 2000) {
+            throw new Error(
+              `Insufficient disk space: ${Math.round(availMB)} MB available, ` +
+              `but assets require ~1.3 GB. Free up space or use --path to specify a different location.`,
+            );
+          }
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('Insufficient disk space')) throw err;
+      }
+    } else {
+      // Use df on Unix-like systems
       const { stdout } = await execFileAsync('df', ['-k', dir]);
       const lines = stdout.trim().split('\n');
       if (lines.length >= 2) {

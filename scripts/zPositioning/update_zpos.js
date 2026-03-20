@@ -18,7 +18,7 @@ fs.readdirSync(SHEETS_DIR, {
   for (let jdx=1; jdx < 10; jdx++) {
     const layerDefinition = definition[`layer_${jdx}`];
     if (layerDefinition !== undefined) {
-      var entryIdx = 0;
+      let entryIdx = 0;
       for (let entry in csv) {
         const item = csv[entryIdx];
         const fields = item.split(",");

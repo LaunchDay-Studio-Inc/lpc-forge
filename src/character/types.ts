@@ -45,22 +45,29 @@ export const SHEET_HEIGHT = 3456; // 54 rows
 
 // Animation definitions derived from the existing constants.js
 // row = starting row index, rows = number of direction rows, frames = frames per direction
-export const ANIMATIONS: Record<string, { frames: number; rows: number; row: number }> = {
-  spellcast:    { frames: 7,  rows: 4, row: 0 },
-  thrust:       { frames: 8,  rows: 4, row: 4 },
-  walk:         { frames: 9,  rows: 4, row: 8 },
-  slash:        { frames: 6,  rows: 4, row: 12 },
-  shoot:        { frames: 13, rows: 4, row: 16 },
-  hurt:         { frames: 6,  rows: 1, row: 20 },
-  climb:        { frames: 6,  rows: 1, row: 21 },
-  idle:         { frames: 2,  rows: 4, row: 22 },
-  jump:         { frames: 5,  rows: 4, row: 26 },
-  sit:          { frames: 3,  rows: 4, row: 30 },
-  emote:        { frames: 3,  rows: 4, row: 34 },
-  run:          { frames: 8,  rows: 4, row: 38 },
-  combat_idle:  { frames: 2,  rows: 4, row: 42 },
-  backslash:    { frames: 13, rows: 4, row: 46 },
-  halfslash:    { frames: 6,  rows: 4, row: 50 },
+export interface AnimationInfo {
+  frames: number;
+  rows: number;
+  row: number;
+  loop: boolean;
+}
+
+export const ANIMATIONS: Record<string, AnimationInfo> = {
+  spellcast:    { frames: 7,  rows: 4, row: 0,  loop: false },
+  thrust:       { frames: 8,  rows: 4, row: 4,  loop: false },
+  walk:         { frames: 9,  rows: 4, row: 8,  loop: true },
+  slash:        { frames: 6,  rows: 4, row: 12, loop: false },
+  shoot:        { frames: 13, rows: 4, row: 16, loop: false },
+  hurt:         { frames: 6,  rows: 1, row: 20, loop: false },
+  climb:        { frames: 6,  rows: 1, row: 21, loop: false },
+  idle:         { frames: 2,  rows: 4, row: 22, loop: true },
+  jump:         { frames: 5,  rows: 4, row: 26, loop: false },
+  sit:          { frames: 3,  rows: 4, row: 30, loop: false },
+  emote:        { frames: 3,  rows: 4, row: 34, loop: false },
+  run:          { frames: 8,  rows: 4, row: 38, loop: true },
+  combat_idle:  { frames: 2,  rows: 4, row: 42, loop: true },
+  backslash:    { frames: 13, rows: 4, row: 46, loop: false },
+  halfslash:    { frames: 6,  rows: 4, row: 50, loop: false },
 };
 
 // Folder name mapping (animation name → actual folder name in spritesheets)

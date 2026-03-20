@@ -209,7 +209,7 @@ export const PROP_GENERATORS: Record<string, { generate: (path: string) => Promi
   },
   torch: {
     generate: generateTorch,
-    entry: { name: 'Wall Torch', category: 'light', description: '2-frame fire animation', width: 16, height: 32 },
+    entry: { name: 'Wall Torch', category: 'light', description: '2-frame fire animation', width: 32, height: 32 },
   },
   pot: {
     generate: generatePot,
@@ -221,7 +221,7 @@ export const PROP_GENERATORS: Record<string, { generate: (path: string) => Promi
   },
   campfire: {
     generate: generateCampfire,
-    entry: { name: 'Campfire', category: 'light', description: '2-frame fire animation with stone ring', width: 32, height: 32 },
+    entry: { name: 'Campfire', category: 'light', description: '2-frame fire animation with stone ring', width: 64, height: 32 },
   },
   bookshelf: {
     generate: generateBookshelf,

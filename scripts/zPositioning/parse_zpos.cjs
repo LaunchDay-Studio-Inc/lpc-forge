@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require("path");
 const SHEETS_DIR = "sheet_definitions" + path.sep;
 
-var csvEntries = [];
+const csvEntries = [];
 const possibleBodies = ["male", "female", "muscular", "pregnant","child"];
 
 // Read sheet_definitions/* recursively line by line recursively and extract zPos and image references to write to csv
-const files = fs.readdirSync(SHEETS_DIR, { 
+const files = fs.readdirSync(SHEETS_DIR, {
   recursive: true,
-  withFileTypes: true 
+  withFileTypes: true
 }).sort((a, b) => {
   const pa = path.join(a.path, a.name);
   const pb = path.join(b.path, b.name);
@@ -32,9 +32,9 @@ files.forEach(file => {
     if (layerDefinition !== undefined) {
       const layer = `layer_${jdx}`;
       const zPos = layerDefinition.zPos;
-      var images = "";
-      var bodyIndex = 0;
-      var firstImage = true;
+      let images = "";
+      let bodyIndex = 0;
+      let firstImage = true;
       for (let item in possibleBodies) {
         const body = possibleBodies[bodyIndex];
         const imageRef = layerDefinition[`${body}`];

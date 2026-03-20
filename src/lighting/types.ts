@@ -13,7 +13,8 @@ export interface LightConfig {
   type: 'point' | 'directional';
   color: { r: number; g: number; b: number; a: number };
   energy: number;
-  textureScale: number;
+  /** For point lights: texture scale multiplier */
+  textureScale?: number;
   /** For point lights: range/size */
   range?: number;
   /** Shadow enabled */

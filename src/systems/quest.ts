@@ -9,7 +9,7 @@ signal quest_completed(quest_id: String)
 signal objective_updated(quest_id: String, objective_id: String, current: int, target: int)
 
 var active_quests: Dictionary = {}  # quest_id → quest data
-var completed_quests: Array = []
+var completed_quests: Dictionary = {}
 var _quest_database: Dictionary = {}
 
 func _ready() -> void:
@@ -45,7 +45,7 @@ func _load_quest_database() -> void:
 \t}
 
 func start_quest(quest_id: String) -> bool:
-\tif active_quests.has(quest_id) or quest_id in completed_quests:
+\tif active_quests.has(quest_id) or completed_quests.has(quest_id):
 \t\treturn false
 \tif not _quest_database.has(quest_id):
 \t\treturn false
@@ -80,7 +80,7 @@ func _check_completion(quest_id: String) -> void:
 \t\tvar current: int = quest["progress"].get(obj["id"], 0)
 \t\tif current < obj["target"]:
 \t\t\treturn
-\tcompleted_quests.append(quest_id)
+\tcompleted_quests[quest_id] = true
 \t_grant_rewards(quest)
 \tactive_quests.erase(quest_id)
 \tquest_completed.emit(quest_id)
@@ -100,13 +100,13 @@ func is_quest_active(quest_id: String) -> bool:
 \treturn active_quests.has(quest_id)
 
 func is_quest_complete(quest_id: String) -> bool:
-\treturn quest_id in completed_quests
+\treturn completed_quests.has(quest_id)
 
 func get_quest_info(quest_id: String) -> Dictionary:
 \tif active_quests.has(quest_id):
-\t\treturn active_quests[quest_id]
+\t\treturn active_quests[quest_id].duplicate()
 \tif _quest_database.has(quest_id):
-\t\treturn _quest_database[quest_id]
+\t\treturn _quest_database[quest_id].duplicate()
 \treturn {}
 
 func save_data() -> Dictionary:
@@ -117,7 +117,7 @@ func save_data() -> Dictionary:
 
 func load_data(data: Dictionary) -> void:
 \tactive_quests = data.get("active", {})
-\tcompleted_quests = data.get("completed", [])
+\tcompleted_quests = data.get("completed", {})
 `;
 
   const questUIGd = `extends Control

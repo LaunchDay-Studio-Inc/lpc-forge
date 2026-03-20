@@ -1,6 +1,5 @@
 import { generateDungeon } from './dungeon.js';
 import type { GeneratedMap, PointOfInterest } from './types.js';
-import { SeededRNG } from '../utils/rng.js';
 
 export interface MultiFloorConfig {
   floors: number;
@@ -23,7 +22,7 @@ export interface MultiFloorDungeon {
   connections: FloorConnection[];
 }
 
-export async function generateMultiFloor(config: MultiFloorConfig): Promise<MultiFloorDungeon> {
+export function generateMultiFloor(config: MultiFloorConfig): MultiFloorDungeon {
   const {
     floors: numFloors,
     width,
@@ -32,7 +31,6 @@ export async function generateMultiFloor(config: MultiFloorConfig): Promise<Mult
   } = config;
 
   const floorCount = Math.max(2, Math.min(5, numFloors));
-  const rng = new SeededRNG(seed);
   const floors: GeneratedMap[] = [];
   const connections: FloorConnection[] = [];
 
@@ -89,6 +87,8 @@ export async function generateMultiFloor(config: MultiFloorConfig): Promise<Mult
         tx: nextEntrance.x,
         ty: nextEntrance.y,
       });
+    } else {
+      console.warn(`Warning: Could not establish stair connection between floor ${f} and floor ${f + 1}`);
     }
   }
 

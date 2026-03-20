@@ -3,11 +3,14 @@ import { join } from 'node:path';
 import { sliceCharacter } from '../character/slicer.js';
 import { ANIMATIONS, DIRECTIONS, FRAME_SIZE } from '../character/types.js';
 import type { GeneratedMap } from '../map/types.js';
+import { TileType } from '../map/types.js';
 
 export interface CharacterExportOptions {
   animationSpeed?: number;
   resPath?: string;
   isPlayer?: boolean;
+  playerSpeed?: number;
+  playerHealth?: number;
 }
 
 /** Export a character spritesheet as Godot 4.6 resources */
@@ -88,7 +91,7 @@ function generateSpriteFramesTres(
 }`);
       }
 
-      const loop = animName === 'walk' || animName === 'idle' || animName === 'run' || animName === 'combat_idle';
+      const loop = animInfo.loop;
 
       anims.push(`{
 "frames": [${frames.join(', ')}],
@@ -124,9 +127,9 @@ function generateCharacterTscn(name: string, resBase: string, isPlayer: boolean)
   lines.push(`size = Vector2(${FRAME_SIZE / 2}, ${FRAME_SIZE / 2})`);
   lines.push('');
 
-  // Hurtbox shape
+  // Hurtbox shape — derived from FRAME_SIZE
   lines.push(`[sub_resource type="RectangleShape2D" id="3"]`);
-  lines.push(`size = Vector2(24, 32)`);
+  lines.push(`size = Vector2(${Math.floor(FRAME_SIZE * 3 / 8)}, ${FRAME_SIZE / 2})`);
   lines.push('');
 
   // Root node
@@ -141,7 +144,7 @@ function generateCharacterTscn(name: string, resBase: string, isPlayer: boolean)
   lines.push(`sprite_frames = ExtResource("1")`);
   lines.push(`animation = &"idle_down"`);
   lines.push(`autoplay = "idle_down"`);
-  lines.push(`offset = Vector2(0, -16)`);
+  lines.push(`offset = Vector2(0, -${FRAME_SIZE / 4})`);
   lines.push('');
 
   // Body collision
@@ -151,8 +154,10 @@ function generateCharacterTscn(name: string, resBase: string, isPlayer: boolean)
   lines.push('');
 
   // Hitbox Area2D
+  // Layer 2: Hitbox layer — used for attack collision detection
   lines.push(`[node name="Hitbox" type="Area2D" parent="."]`);
   lines.push(`collision_layer = 2`);
+  // No mask: hitbox doesn't detect others, it's only detected by hurtboxes
   lines.push(`collision_mask = 0`);
   lines.push(`monitorable = true`);
   lines.push(`monitoring = false`);
@@ -228,13 +233,12 @@ function mergeWallTiles(map: GeneratedMap, tileSize: number): WallRect[] {
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const t = map.tiles[y][x];
-      // TileType.WALL = 2, TileType.TREE = 7
-      if ((t !== 2 && t !== 7) || visited[y][x]) continue;
+      if ((t !== TileType.WALL && t !== TileType.TREE) || visited[y][x]) continue;
 
       // Extend horizontally as far as possible
       let endX = x;
       while (endX + 1 < map.width && !visited[y][endX + 1] &&
-             (map.tiles[y][endX + 1] === 2 || map.tiles[y][endX + 1] === 7)) {
+             (map.tiles[y][endX + 1] === TileType.WALL || map.tiles[y][endX + 1] === TileType.TREE)) {
         endX++;
       }
 
@@ -243,7 +247,7 @@ function mergeWallTiles(map: GeneratedMap, tileSize: number): WallRect[] {
       outer: while (endY + 1 < map.height) {
         for (let cx = x; cx <= endX; cx++) {
           if (visited[endY + 1][cx] ||
-              (map.tiles[endY + 1][cx] !== 2 && map.tiles[endY + 1][cx] !== 7)) {
+              (map.tiles[endY + 1][cx] !== TileType.WALL && map.tiles[endY + 1][cx] !== TileType.TREE)) {
             break outer;
           }
         }
@@ -348,8 +352,6 @@ function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): 
       const nodeName = `POI_${poi.type}_${i}`;
       lines.push(`[node name="${nodeName}" type="Marker2D" parent="."]`);
       lines.push(`position = Vector2(${poi.x * tileSize + tileSize / 2}, ${poi.y * tileSize + tileSize / 2})`);
-      const meta: Record<string, string> = { poi_type: poi.type };
-      if (poi.label) meta['poi_label'] = poi.label;
       lines.push(`metadata/poi_type = "${poi.type}"`);
       if (poi.label) lines.push(`metadata/poi_label = "${poi.label}"`);
       lines.push('');

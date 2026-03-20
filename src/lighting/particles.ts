@@ -87,7 +87,6 @@ initial_velocity_max = 40.0
 scale_min = 0.5
 scale_max = 2.0
 color = Color(1.0, 0.6, 0.1, 0.9)
-color_ramp = null
 
 [node name="TorchFire" type="GPUParticles2D"]
 amount = 30

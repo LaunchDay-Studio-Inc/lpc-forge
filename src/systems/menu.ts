@@ -44,15 +44,16 @@ func _refresh_save_slots() -> void:
 \tvar save_mgr := get_node_or_null("/root/SaveManager")
 \tif not save_mgr:
 \t\treturn
-\tfor i in range(SaveManager.MAX_SLOTS):
-\t\tvar info := SaveManager.get_save_info(i)
+\t# Use save_mgr consistently instead of SaveManager global
+\tfor i in range(save_mgr.MAX_SLOTS):
+\t\tvar info := save_mgr.get_save_info(i)
 \t\tvar btn := Button.new()
 \t\tif info.is_empty():
 \t\t\tbtn.text = "Slot %d — Empty" % (i + 1)
 \t\t\tbtn.disabled = true
 \t\telse:
 \t\t\tbtn.text = "Slot %d — Lv.%d — %s" % [i + 1, info.get("level", 1), info.get("timestamp", "")]
-\t\tbtn.pressed.connect(SaveManager.load_game.bind(i))
+\t\tbtn.pressed.connect(save_mgr.load_game.bind(i))
 \t\tsave_slots.add_child(btn)
 `;
 
@@ -159,6 +160,8 @@ func _on_resume() -> void:
 \ttoggle_pause()
 
 func _on_save() -> void:
+\tif not has_node("/root/SaveManager"):
+\t\treturn
 \tvar slot := SaveManager.current_slot
 \tif slot < 0:
 \t\tslot = 0

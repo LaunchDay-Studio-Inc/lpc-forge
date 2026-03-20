@@ -26,6 +26,17 @@ export async function runBatch(
 ): Promise<{ name: string; success: boolean; error?: string }[]> {
   const raw = await readFile(configPath, 'utf-8');
   const config: BatchConfig = JSON.parse(raw);
+
+  // Schema validation for batch config
+  if (!config || !Array.isArray(config.characters)) {
+    throw new Error('Invalid batch config: must contain a "characters" array');
+  }
+  for (const entry of config.characters) {
+    if (!entry.name || typeof entry.name !== 'string') {
+      throw new Error('Invalid batch config: each entry must have a "name" string');
+    }
+  }
+
   const results: { name: string; success: boolean; error?: string }[] = [];
 
   for (const entry of config.characters) {

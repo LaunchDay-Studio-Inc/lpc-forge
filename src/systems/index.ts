@@ -25,10 +25,18 @@ const SYSTEM_GENERATORS: Record<string, () => GameSystem> = {
   hud_full: generateFullHUD,
 };
 
+/** Memoization cache for system generators */
+const systemCache = new Map<string, GameSystem>();
+
 /** Get a single system by name */
 export function getSystem(name: string): GameSystem | null {
+  const cached = systemCache.get(name);
+  if (cached) return cached;
   const gen = SYSTEM_GENERATORS[name];
-  return gen ? gen() : null;
+  if (!gen) return null;
+  const system = gen();
+  systemCache.set(name, system);
+  return system;
 }
 
 /** Get all systems */

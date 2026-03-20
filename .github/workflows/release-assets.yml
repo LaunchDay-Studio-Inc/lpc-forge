@@ -12,7 +12,7 @@ jobs:
   package-assets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           lfs: false
 
@@ -21,25 +21,37 @@ jobs:
           set -euo pipefail
           mkdir -p dist-assets
 
+          # Helper: only tar if all listed directories exist
+          safe_tar() {
+            local archive="$1"; shift
+            for dir in "$@"; do
+              if [ ! -d "$dir" ]; then
+                echo "WARNING: directory '$dir' does not exist — skipping archive '$archive'"
+                return 0
+              fi
+            done
+            tar czf "$archive" "$@"
+          }
+
           # Package sheet definitions (required, small)
-          tar czf dist-assets/lpc-assets-definitions.tar.gz sheet_definitions/
+          safe_tar dist-assets/lpc-assets-definitions.tar.gz sheet_definitions/
 
           # Body sprites (required base)
-          tar czf dist-assets/lpc-assets-body.tar.gz \
+          safe_tar dist-assets/lpc-assets-body.tar.gz \
             spritesheets/body/ spritesheets/shadow/ spritesheets/eyes/ spritesheets/head/
 
           # Equipment — armor, weapons, shields, limbs
-          tar czf dist-assets/lpc-assets-equipment.tar.gz \
+          safe_tar dist-assets/lpc-assets-equipment.tar.gz \
             spritesheets/torso/ spritesheets/shield/ spritesheets/weapon/ spritesheets/arms/ \
             spritesheets/shoulders/ spritesheets/bauldron/ spritesheets/wrists/ spritesheets/legs/ spritesheets/feet/
 
           # Cosmetic — hair, hats, clothing, accessories
-          tar czf dist-assets/lpc-assets-hair-clothes.tar.gz \
+          safe_tar dist-assets/lpc-assets-hair-clothes.tar.gz \
             spritesheets/hair/ spritesheets/hat/ spritesheets/beards/ spritesheets/facial/ \
             spritesheets/cape/ spritesheets/dress/ spritesheets/neck/ spritesheets/backpack/
 
           # Miscellaneous — tools, quiver
-          tar czf dist-assets/lpc-assets-misc.tar.gz \
+          safe_tar dist-assets/lpc-assets-misc.tar.gz \
             spritesheets/tools/ spritesheets/quiver/
 
       - name: Generate manifest
@@ -79,7 +91,7 @@ jobs:
           "
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c062e08bd532815e2082a407cebd703cfd7364e1 # v2.2.1
         with:
           files: dist-assets/*
         env:
