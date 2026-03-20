@@ -21,19 +21,35 @@ program
   .version(pkg.version);
 
 // === CHARACTER COMMAND ===
+// Hair shorthand aliases: user-friendly name → actual subcategory in sheet_definitions
+const HAIR_ALIASES: Record<string, string> = {
+  mohawk: 'hair_shorthawk',
+  mohawk_long: 'hair_longhawk',
+  shorthawk: 'hair_shorthawk',
+  longhawk: 'hair_longhawk',
+};
+
+// Skin aliases for common names
+const SKIN_ALIASES: Record<string, string> = {
+  dark: 'brown',
+  peach: 'light',
+  tan: 'bronze',
+};
+
 program
   .command('character')
-  .description('Generate a character spritesheet')
-  .option('-p, --preset <name>', 'Use a preset (warrior, mage, rogue, ranger, villager)')
+  .description('Generate a character spritesheet\n\n  Available presets: warrior, mage, rogue, ranger, villager, paladin, necromancer,\n  knight, barbarian, monk, thief, healer, archer, merchant, guard, skeleton, peasant\n\n  Layer syntax: --hair <style>:<color>  e.g. "plain:brown", "ponytail:blonde"\n               --armor <type>:<variant> e.g. "plate:steel", "leather:brown"\n               --weapon <type>:<variant> e.g. "sword_longsword:longsword"')
+  .option('-p, --preset <name>', 'Use a preset (warrior, mage, rogue, ranger, villager, ...)')
   .option('-b, --body <type>', 'Body type (male, female, muscular, teen, child, pregnant)', 'male')
-  .option('--skin <variant>', 'Skin color variant', 'light')
-  .option('--hair <style:color>', 'Hair style and color (e.g., "plain:brown")')
-  .option('--armor <type:variant>', 'Armor type and variant')
-  .option('--weapon <type:variant>', 'Weapon type and variant')
+  .option('--skin <variant>', 'Skin color variant (light, amber, olive, taupe, bronze, brown, black, ...)', 'light')
+  .option('--hair <style:color>', 'Hair style and color (e.g., "plain:brown", "ponytail:blonde")')
+  .option('--armor <type:variant>', 'Armor type and variant (e.g., "plate:steel")')
+  .option('--weapon <type:variant>', 'Weapon type and variant (e.g., "sword_longsword:longsword")')
   .option('-o, --output <path>', 'Output path', './output/character')
   .option('--slice', 'Also slice into individual frames', false)
   .option('--godot', 'Export as Godot 4 resources', false)
   .option('--list-layers', 'List all available layers and variants')
+  .option('--verbose', 'Show detailed compositing information', false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .action(async (opts: any) => {
     const chalk = (await import('chalk')).default;
@@ -66,20 +82,24 @@ program
       if (opts.preset) {
         const preset = PRESETS[opts.preset];
         if (!preset) {
-          spinner.fail(`Unknown preset: ${opts.preset}. Available: ${Object.keys(PRESETS).join(', ')}`);
+          spinner.fail(`Unknown preset: "${opts.preset}". Available: ${Object.keys(PRESETS).join(', ')}`);
           process.exit(1);
         }
         spec = preset.spec;
         spinner.text = `Composing ${preset.name}...`;
       } else {
+        // Resolve skin alias
+        const skinVariant = SKIN_ALIASES[opts.skin] ?? opts.skin;
+
         // Build spec from CLI options
         const layers: import('./character/types.js').CharacterLayer[] = [
-          { category: 'body', subcategory: 'body', variant: opts.skin },
+          { category: 'body', subcategory: 'body', variant: skinVariant },
         ];
 
         if (opts.hair) {
           const [style, color] = opts.hair.split(':');
-          layers.push({ category: 'hair', subcategory: `hair_${style}`, variant: color || 'brown' });
+          const resolvedStyle = HAIR_ALIASES[style] ?? `hair_${style}`;
+          layers.push({ category: 'hair', subcategory: resolvedStyle, variant: color || 'brown' });
         }
 
         if (opts.armor) {
@@ -98,11 +118,17 @@ program
         };
       }
 
-      const buffer = await composeCharacter(spec, assetRoot);
+      const buffer = await composeCharacter(spec, assetRoot, { verbose: opts.verbose });
       const outputDir = resolve(opts.output);
       await mkdir(outputDir, { recursive: true });
       await writeFile(join(outputDir, 'spritesheet.png'), buffer);
       spinner.succeed(`Character spritesheet saved to ${outputDir}/spritesheet.png`);
+
+      if (opts.verbose) {
+        const { statSync } = await import('node:fs');
+        const size = statSync(join(outputDir, 'spritesheet.png')).size;
+        console.log(chalk.gray(`  Output size: ${(size / 1024).toFixed(1)} KB`));
+      }
 
       if (opts.slice) {
         const sliceSpinner = ora('Slicing into frames...').start();
@@ -138,6 +164,20 @@ program
 
     const assetRoot = await ensureAssets(PACKAGE_ROOT);
     const spinner = ora('Running batch generation...').start();
+
+    try {
+      const raw = await (await import('node:fs/promises')).readFile(resolve(configPath), 'utf-8');
+      const config = JSON.parse(raw);
+
+      if (!config.characters || config.characters.length === 0) {
+        spinner.warn('Batch config has no characters to generate.');
+        return;
+      }
+    } catch (err) {
+      spinner.fail(`Failed to read batch config: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+
     const results = await runBatch(resolve(configPath), assetRoot, resolve(opts.output));
 
     const succeeded = results.filter(r => r.success).length;
@@ -157,44 +197,67 @@ program
 // === LIST COMMAND ===
 program
   .command('list')
-  .description('List available assets')
-  .option('-c, --category <name>', 'Filter by category')
+  .description('List available assets, categories, or presets')
+  .option('-c, --category <name>', 'Show detailed layers for a category (e.g., body, hair, torso)')
+  .option('--presets', 'Show available character presets with descriptions')
   .option('--body-type <type>', 'Filter by body type')
   .option('--json', 'Output as JSON')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+
+    // --presets: show all presets
+    if (opts.presets) {
+      const { PRESETS } = await import('./character/presets.js');
+      console.log(chalk.bold.cyan('\nAvailable Character Presets:\n'));
+      for (const [key, preset] of Object.entries(PRESETS)) {
+        console.log(`  ${chalk.green(key.padEnd(14))} ${preset.description} (${preset.spec.bodyType})`);
+      }
+      console.log(chalk.gray(`\n  Usage: lpc-forge character --preset <name>`));
+      return;
+    }
+
     const assetRoot = await ensureAssets(PACKAGE_ROOT);
     const { loadDefinitions, listLayers } = await import('./character/definitions.js');
     const registry = await loadDefinitions(assetRoot);
     const layers = listLayers(registry);
 
     if (opts.category) {
+      // Detailed view for a specific category
       const filtered: Record<string, typeof layers[string]> = {};
       for (const [key, val] of Object.entries(layers)) {
         if (key.includes(opts.category)) {
           filtered[key] = val;
         }
       }
+      if (Object.keys(filtered).length === 0) {
+        console.log(chalk.yellow(`No layers found for category "${opts.category}".`));
+        console.log(chalk.gray(`Available categories: ${Object.keys(layers).join(', ')}`));
+        return;
+      }
       if (opts.json) {
         console.log(JSON.stringify(filtered, null, 2));
       } else {
         for (const [cat, items] of Object.entries(filtered)) {
-          console.log(`\n${cat}:`);
+          console.log(chalk.bold.cyan(`\n${cat}`) + chalk.gray(` (${items.length} layers)`));
           for (const item of items) {
-            console.log(`  ${item.name}: ${item.variants.join(', ')}`);
+            console.log(`  ${chalk.green(item.name)}: ${item.variants.slice(0, 8).join(', ')}${item.variants.length > 8 ? `, ... (${item.variants.length} total)` : ''}`);
           }
         }
       }
     } else {
+      // Default: summary view with category counts
       if (opts.json) {
         console.log(JSON.stringify(layers, null, 2));
       } else {
+        console.log(chalk.bold.cyan('\nAsset Categories:\n'));
+        let total = 0;
         for (const [cat, items] of Object.entries(layers)) {
-          console.log(`\n${cat}:`);
-          for (const item of items) {
-            console.log(`  ${item.name}: ${item.variants.join(', ')}`);
-          }
+          total += items.length;
+          console.log(`  ${chalk.green(cat.padEnd(14))} ${items.length} layers`);
         }
+        console.log(chalk.bold(`\n  Total: ${total} layers`));
+        console.log(chalk.gray('\n  Use --category <name> for details, --presets for character presets'));
       }
     }
   });
@@ -202,12 +265,12 @@ program
 // === MAP COMMAND ===
 program
   .command('map')
-  .description('Generate a procedural map')
+  .description('Generate a procedural map\n\n  Types: dungeon (BSP), cave (Cellular Automata), overworld (Diamond-Square),\n         wfc (Wave Function Collapse), town (Building placement), multifloor')
   .argument('<type>', 'Map type (dungeon, cave, overworld, wfc, town, multifloor)')
-  .option('-W, --width <n>', 'Map width in tiles', '50')
-  .option('-H, --height <n>', 'Map height in tiles', '50')
+  .option('-W, --width <n>', 'Map width in tiles (min: 10)', '50')
+  .option('-H, --height <n>', 'Map height in tiles (min: 10)', '50')
   .option('-s, --seed <seed>', 'Random seed')
-  .option('--rooms <n>', 'Number of rooms (dungeon only)', '12')
+  .option('--rooms <n>', 'Number of rooms (dungeon only, min: 1)', '12')
   .option('--room-min <n>', 'Minimum room size', '5')
   .option('--room-max <n>', 'Maximum room size', '15')
   .option('--buildings <n>', 'Number of buildings (town only)', '6')
@@ -215,6 +278,7 @@ program
   .option('-o, --output <path>', 'Output path', './output/map')
   .option('--render', 'Render visual PNG preview', true)
   .option('--godot', 'Export as Godot 4 TileMap', false)
+  .option('--verbose', 'Show generation details', false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .action(async (type: string, opts: any) => {
     const chalk = (await import('chalk')).default;
@@ -226,16 +290,27 @@ program
       const height = parseInt(opts.height);
       const seed = opts.seed || `map-${Date.now()}`;
 
+      // Validate minimum dimensions
+      if (width < 10 || height < 10) {
+        spinner.fail(`Map dimensions too small (${width}×${height}). Minimum: 10×10`);
+        process.exit(1);
+      }
+
       let map: import('./map/types.js').GeneratedMap;
 
       switch (type) {
         case 'dungeon': {
+          const maxRooms = parseInt(opts.rooms);
+          if (maxRooms < 1) {
+            spinner.fail(`--rooms must be at least 1 (got ${maxRooms})`);
+            process.exit(1);
+          }
           const { generateDungeon } = await import('./map/dungeon.js');
           map = generateDungeon({
             width,
             height,
             seed,
-            maxRooms: parseInt(opts.rooms),
+            maxRooms,
             roomMinSize: parseInt(opts.roomMin),
             roomMaxSize: parseInt(opts.roomMax),
           });

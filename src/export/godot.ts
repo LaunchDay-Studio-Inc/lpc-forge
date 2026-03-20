@@ -213,19 +213,94 @@ function generateTilesetTres(tileSize: number): string {
   return lines.join('\n');
 }
 
+interface WallRect {
+  cx: number; // center x in pixels
+  cy: number; // center y in pixels
+  w: number;  // width in pixels
+  h: number;  // height in pixels
+}
+
+/** Merge adjacent wall tiles into larger rectangles using row-based greedy merging */
+function mergeWallTiles(map: GeneratedMap, tileSize: number): WallRect[] {
+  const rects: WallRect[] = [];
+  const visited = Array.from({ length: map.height }, () => new Array(map.width).fill(false) as boolean[]);
+
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const t = map.tiles[y][x];
+      // TileType.WALL = 2, TileType.TREE = 7
+      if ((t !== 2 && t !== 7) || visited[y][x]) continue;
+
+      // Extend horizontally as far as possible
+      let endX = x;
+      while (endX + 1 < map.width && !visited[y][endX + 1] &&
+             (map.tiles[y][endX + 1] === 2 || map.tiles[y][endX + 1] === 7)) {
+        endX++;
+      }
+
+      // Try to extend downward
+      let endY = y;
+      outer: while (endY + 1 < map.height) {
+        for (let cx = x; cx <= endX; cx++) {
+          if (visited[endY + 1][cx] ||
+              (map.tiles[endY + 1][cx] !== 2 && map.tiles[endY + 1][cx] !== 7)) {
+            break outer;
+          }
+        }
+        endY++;
+      }
+
+      // Mark all covered tiles as visited
+      for (let vy = y; vy <= endY; vy++) {
+        for (let vx = x; vx <= endX; vx++) {
+          visited[vy][vx] = true;
+        }
+      }
+
+      const tilesW = endX - x + 1;
+      const tilesH = endY - y + 1;
+      rects.push({
+        cx: x * tileSize + (tilesW * tileSize) / 2,
+        cy: y * tileSize + (tilesH * tileSize) / 2,
+        w: tilesW * tileSize,
+        h: tilesH * tileSize,
+      });
+    }
+  }
+
+  return rects;
+}
+
 function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): string {
   const lines: string[] = [];
 
-  // Count sub resources needed: 1 for tileset ref + 1 collision shape per wall group
-  lines.push(`[gd_scene load_steps=2 format=3]`);
+  // Merge adjacent wall tiles into larger rectangles (row-based greedy merge)
+  const wallRects = mergeWallTiles(map, tileSize);
+
+  // Collect non-default wall shapes that need sub_resources
+  const customShapes = wallRects.filter(r => r.w !== tileSize || r.h !== tileSize);
+  // load_steps = 1 (ext tileset) + 1 (default wall shape) + custom shapes
+  const loadSteps = 2 + customShapes.length;
+
+  lines.push(`[gd_scene load_steps=${loadSteps} format=3]`);
   lines.push('');
   lines.push(`[ext_resource type="TileSet" path="res://${mapName}_tileset.tres" id="1"]`);
   lines.push('');
 
-  // Collision shape for walls
+  // Default collision shape for single-tile walls
   lines.push(`[sub_resource type="RectangleShape2D" id="1"]`);
   lines.push(`size = Vector2(${tileSize}, ${tileSize})`);
   lines.push('');
+
+  // Custom collision shapes for merged walls
+  for (let i = 0; i < wallRects.length; i++) {
+    const rect = wallRects[i];
+    if (rect.w !== tileSize || rect.h !== tileSize) {
+      lines.push(`[sub_resource type="RectangleShape2D" id="wall_${i}"]`);
+      lines.push(`size = Vector2(${rect.w}, ${rect.h})`);
+      lines.push('');
+    }
+  }
 
   lines.push(`[node name="${capitalize(mapName)}" type="Node2D"]`);
   lines.push('');
@@ -235,25 +310,22 @@ function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): 
   lines.push(`tile_set = ExtResource("1")`);
   lines.push('');
 
-  // Wall collision StaticBody2D with individual CollisionShape2Ds
+  // Wall collision StaticBody2D with merged collision rectangles
   lines.push(`[node name="Walls" type="StaticBody2D" parent="."]`);
   lines.push(`collision_layer = 1`);
   lines.push(`collision_mask = 0`);
   lines.push('');
 
-  let wallIdx = 0;
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      const t = map.tiles[y][x];
-      // TileType.WALL = 2, TileType.TREE = 7
-      if (t === 2 || t === 7) {
-        lines.push(`[node name="Wall${wallIdx}" type="CollisionShape2D" parent="Walls"]`);
-        lines.push(`position = Vector2(${x * tileSize + tileSize / 2}, ${y * tileSize + tileSize / 2})`);
-        lines.push(`shape = SubResource("1")`);
-        lines.push('');
-        wallIdx++;
-      }
+  for (let i = 0; i < wallRects.length; i++) {
+    const rect = wallRects[i];
+    lines.push(`[node name="Wall${i}" type="CollisionShape2D" parent="Walls"]`);
+    lines.push(`position = Vector2(${rect.cx}, ${rect.cy})`);
+    if (rect.w === tileSize && rect.h === tileSize) {
+      lines.push(`shape = SubResource("1")`);
+    } else {
+      lines.push(`shape = SubResource("wall_${i}")`);
     }
+    lines.push('');
   }
 
   // Spawn and exit markers
@@ -412,8 +484,10 @@ var health: int = MAX_HEALTH
 func _ready() -> void:
 \tattack_timer.timeout.connect(_on_attack_finished)
 \thurt_timer.timeout.connect(_on_hurt_finished)
-\thealth_changed.emit(health, MAX_HEALTH)
-
+\thealth_changed.emit(health, MAX_HEALTH)	# Move to spawn point if available in scene
+	var spawn := get_parent().find_child("SpawnPoint", true, false)
+	if spawn is Marker2D:
+		global_position = spawn.global_position
 func _physics_process(_delta: float) -> void:
 \tmatch state:
 \t\tState.IDLE:
@@ -493,7 +567,7 @@ func _on_hurt_finished() -> void:
 \t_change_state(State.IDLE)
 
 func _get_input() -> Vector2:
-\treturn Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+\treturn Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 func _set_direction(input_dir: Vector2) -> void:
 \tif abs(input_dir.x) > abs(input_dir.y):

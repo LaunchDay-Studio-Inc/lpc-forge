@@ -138,7 +138,7 @@ export async function requireLicense(commandName: string): Promise<void> {
     console.log('');
     console.log(chalk.yellow(`⚠ The "${commandName}" command requires LPC Forge Premium.`));
     console.log('');
-    console.log(chalk.white('  Purchase for $10: ') + chalk.cyan.underline('https://launchday.gumroad.com/l/lpc-forge-premium'));
+    console.log(chalk.white('  Purchase at:  ') + chalk.cyan.underline('https://blueth.online/plugins/lpc-forge'));
     console.log(chalk.white('  Then activate:    ') + chalk.green('lpc-forge activate <your-license-key>'));
     console.log('');
     console.log(chalk.gray('  Free commands: character, batch, list, map, init (without --full)'));

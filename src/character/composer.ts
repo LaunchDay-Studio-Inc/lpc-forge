@@ -10,7 +10,11 @@ import {
   SHEET_HEIGHT,
   ANIMATION_FOLDER_MAP,
 } from './types.js';
-import { loadDefinitions, findDefinition } from './definitions.js';
+import { loadDefinitions, findDefinition, listLayers } from './definitions.js';
+
+export interface ComposeOptions {
+  verbose?: boolean;
+}
 
 interface ResolvedLayer {
   zPos: number;
@@ -24,18 +28,51 @@ interface ResolvedLayer {
 export async function composeCharacter(
   spec: CharacterSpec,
   repoRoot: string,
+  options?: ComposeOptions,
 ): Promise<Buffer> {
+  const verbose = options?.verbose ?? false;
   const registry = await loadDefinitions(repoRoot);
   const spritesDir = join(repoRoot, 'spritesheets');
+
+  // Pre-validate all layers before compositing (Q2)
+  const issues: string[] = [];
+  const allLayers = listLayers(registry);
+
+  for (const layer of spec.layers) {
+    const def = findDefinition(registry, layer.category, layer.subcategory);
+    if (!def) {
+      // Build helpful message with available options
+      const categoryLayers = allLayers[layer.category];
+      if (categoryLayers && categoryLayers.length > 0) {
+        const available = categoryLayers.map(l => l.name.split('/').pop()).join(', ');
+        issues.push(`Unknown ${layer.category}: "${layer.subcategory}". Available: ${available}`);
+      } else {
+        issues.push(`Unknown ${layer.category}: "${layer.subcategory}" (no definitions found for category "${layer.category}")`);
+      }
+      continue;
+    }
+
+    // Validate variant exists for definitions that track variants
+    if (def.variants.length > 0 && !def.variants.includes(layer.variant)) {
+      issues.push(`Unknown variant "${layer.variant}" for ${def.name}. Available: ${def.variants.join(', ')}`);
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new Error(
+      'Cannot compose character. Issues found:\n' +
+      issues.map(i => `  - ${i}`).join('\n'),
+    );
+  }
 
   // Resolve all layers to concrete sprite paths
   const resolvedLayers: ResolvedLayer[] = [];
 
   for (const layer of spec.layers) {
-    const def = findDefinition(registry, layer.category, layer.subcategory);
-    if (!def) {
-      console.warn(`Warning: No definition found for ${layer.category}/${layer.subcategory}, skipping`);
-      continue;
+    const def = findDefinition(registry, layer.category, layer.subcategory)!;
+
+    if (verbose) {
+      console.log(`  Loading: ${def.name} (variant: ${layer.variant})`);
     }
 
     for (const entry of def.layers) {
@@ -47,9 +84,9 @@ export async function composeCharacter(
         // Try to find a fallback body type
         const fallback = findFallbackBodyType(entry.paths, spec.bodyType);
         if (!fallback) {
-          console.warn(
-            `Warning: ${def.name} layer has no path for body type "${spec.bodyType}", skipping`,
-          );
+          if (verbose) {
+            console.log(`    Skipping: ${def.name} layer has no path for body type "${spec.bodyType}"`);
+          }
           continue;
         }
         resolvedLayers.push({
@@ -72,6 +109,13 @@ export async function composeCharacter(
   // Sort by zPos ascending (back to front)
   resolvedLayers.sort((a, b) => a.zPos - b.zPos);
 
+  if (verbose) {
+    console.log(`  Compositing ${resolvedLayers.length} layers (z-sorted):`);
+    for (const l of resolvedLayers) {
+      console.log(`    z=${l.zPos}: ${l.basePath} [${l.variant}]`);
+    }
+  }
+
   // Build universal sheets for each resolved layer
   const layerBuffers: Buffer[] = [];
 
@@ -83,7 +127,7 @@ export async function composeCharacter(
   }
 
   if (layerBuffers.length === 0) {
-    throw new Error('No valid layers could be loaded. Check your CharacterSpec.');
+    throw new Error('No valid layers could be loaded. Check that assets are installed (run: lpc-forge setup).');
   }
 
   // Composite all layers together
