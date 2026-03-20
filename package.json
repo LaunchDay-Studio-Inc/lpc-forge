@@ -16,6 +16,7 @@
     "dist/utils/**",
     "dist/license.js",
     "dist/license.d.ts",
+    "dist/assets/**",
     "assets/**",
     "README.md",
     "LICENSE",

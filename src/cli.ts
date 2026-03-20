@@ -4,9 +4,11 @@ import { resolve, join } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { IconEntry } from './ui/types.js';
+import { resolveAssetRoot, ensureAssets } from './assets/manager.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const REPO_ROOT = resolve(__dirname, '..');
+const PACKAGE_ROOT = resolve(__dirname, '..');
+const REPO_ROOT = resolveAssetRoot(PACKAGE_ROOT);
 
 const program = new Command();
 
@@ -35,8 +37,9 @@ program
     const ora = (await import('ora')).default;
 
     if (opts.listLayers) {
+      const assetRoot = await ensureAssets(PACKAGE_ROOT);
       const { loadDefinitions, listLayers } = await import('./character/definitions.js');
-      const registry = await loadDefinitions(REPO_ROOT);
+      const registry = await loadDefinitions(assetRoot);
       const layers = listLayers(registry);
 
       for (const [category, items] of Object.entries(layers)) {
@@ -48,6 +51,7 @@ program
       return;
     }
 
+    const assetRoot = await ensureAssets(PACKAGE_ROOT);
     const spinner = ora('Composing character...').start();
 
     try {
@@ -91,7 +95,7 @@ program
         };
       }
 
-      const buffer = await composeCharacter(spec, REPO_ROOT);
+      const buffer = await composeCharacter(spec, assetRoot);
       const outputDir = resolve(opts.output);
       await mkdir(outputDir, { recursive: true });
       await writeFile(join(outputDir, 'spritesheet.png'), buffer);
@@ -129,8 +133,9 @@ program
     const ora = (await import('ora')).default;
     const { runBatch } = await import('./character/batch.js');
 
+    const assetRoot = await ensureAssets(PACKAGE_ROOT);
     const spinner = ora('Running batch generation...').start();
-    const results = await runBatch(resolve(configPath), REPO_ROOT, resolve(opts.output));
+    const results = await runBatch(resolve(configPath), assetRoot, resolve(opts.output));
 
     const succeeded = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
@@ -155,8 +160,9 @@ program
   .option('--json', 'Output as JSON')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .action(async (opts: any) => {
+    const assetRoot = await ensureAssets(PACKAGE_ROOT);
     const { loadDefinitions, listLayers } = await import('./character/definitions.js');
-    const registry = await loadDefinitions(REPO_ROOT);
+    const registry = await loadDefinitions(assetRoot);
     const layers = listLayers(registry);
 
     if (opts.category) {
@@ -372,7 +378,8 @@ program
         charSpinner.fail(`Unknown preset: ${opts.character}`);
         process.exit(1);
       }
-      const charBuffer = await composeCharacter(preset.spec, REPO_ROOT);
+      const assetRoot = await ensureAssets(PACKAGE_ROOT);
+      const charBuffer = await composeCharacter(preset.spec, assetRoot);
       await exportCharacterToGodot(charBuffer, outputDir, opts.character);
       charSpinner.succeed(`${preset.name} character generated`);
 
@@ -470,7 +477,7 @@ program
         let enemyCount = 0;
         for (const enemyPreset of enemyPresets) {
           if (PRESETS[enemyPreset]) {
-            const enemyBuffer = await composeCharacter(PRESETS[enemyPreset].spec, REPO_ROOT);
+            const enemyBuffer = await composeCharacter(PRESETS[enemyPreset].spec, assetRoot);
             await exportCharacterToGodot(enemyBuffer, outputDir, enemyPreset, { isPlayer: false });
             enemyCount++;
           }
@@ -483,7 +490,7 @@ program
         let npcCount = 0;
         for (const npcPreset of npcPresets) {
           if (PRESETS[npcPreset] && npcPreset !== 'guard') {
-            const npcBuffer = await composeCharacter(PRESETS[npcPreset].spec, REPO_ROOT);
+            const npcBuffer = await composeCharacter(PRESETS[npcPreset].spec, assetRoot);
             await exportCharacterToGodot(npcBuffer, outputDir, `npc_${npcPreset}`, { isPlayer: false });
             npcCount++;
           }
@@ -1029,6 +1036,57 @@ program
       console.error(err);
       process.exit(1);
     }
+  });
+
+// === SETUP COMMAND ===
+program
+  .command('setup')
+  .description('Download and install LPC sprite assets (~1.3 GB)')
+  .option('--minimal', 'Download only required assets (body + definitions, ~200 MB)')
+  .option('--check', 'Check if assets are installed and up to date')
+  .option('--clean', 'Remove cached assets')
+  .option('--path <dir>', 'Custom asset directory (also set via LPC_FORGE_ASSETS env var)')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .action(async (opts: any) => {
+    const chalk = (await import('chalk')).default;
+    const {
+      isAssetsInstalled, getAssetDir, cleanAssets, downloadWithProgress,
+    } = await import('./assets/manager.js');
+
+    if (opts.check) {
+      const status = await isAssetsInstalled();
+      if (status.installed) {
+        console.log(chalk.green('✅ Assets installed'));
+        console.log(chalk.gray(`   Version: ${status.version}`));
+        console.log(chalk.gray(`   Location: ${status.path}`));
+        if (status.chunks) {
+          console.log(chalk.gray(`   Chunks: ${status.chunks.join(', ')}`));
+        }
+      } else {
+        console.log(chalk.yellow('⚠️  Assets not installed'));
+        console.log(chalk.gray(`   Expected at: ${status.path}`));
+        if (status.version) {
+          console.log(chalk.gray(`   Found version: ${status.version} (may need update)`));
+        }
+        console.log(chalk.gray('\n   Run: lpc-forge setup'));
+      }
+      return;
+    }
+
+    if (opts.clean) {
+      const dir = opts.path || getAssetDir();
+      const ora = (await import('ora')).default;
+      const spinner = ora('Removing cached assets...').start();
+      await cleanAssets(dir);
+      spinner.succeed(`Assets removed from ${dir}`);
+      return;
+    }
+
+    // Download
+    await downloadWithProgress({
+      minimal: opts.minimal,
+      path: opts.path,
+    });
   });
 
 program.parse();

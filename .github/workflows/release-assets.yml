@@ -1,0 +1,85 @@
+name: Package Release Assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  package-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Create asset archives
+        run: |
+          set -euo pipefail
+          mkdir -p dist-assets
+
+          # Package sheet definitions (required, small)
+          tar czf dist-assets/lpc-assets-definitions.tar.gz sheet_definitions/
+
+          cd spritesheets
+
+          # Body sprites (required base, ~326 MB)
+          tar czf ../dist-assets/lpc-assets-body.tar.gz \
+            body/ shadow/ eyes/ head/
+
+          # Equipment — armor, weapons, shields, limbs (~389 MB)
+          tar czf ../dist-assets/lpc-assets-equipment.tar.gz \
+            torso/ shield/ weapon/ arms/ shoulders/ bauldron/ wrists/ legs/ feet/
+
+          # Cosmetic — hair, hats, clothing, accessories (~469 MB)
+          tar czf ../dist-assets/lpc-assets-hair-clothes.tar.gz \
+            hair/ hat/ beards/ facial/ cape/ dress/ neck/ backpack/
+
+          # Miscellaneous — tools, quiver (~2 MB)
+          tar czf ../dist-assets/lpc-assets-misc.tar.gz \
+            tools/ quiver/
+
+          cd ..
+
+      - name: Generate manifest
+        run: |
+          node -e "
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const path = require('path');
+          const tag = process.env.GITHUB_REF_NAME || 'v0.0.0';
+          const repo = '${{ github.repository }}';
+
+          const chunks = [];
+
+          for (const file of fs.readdirSync('dist-assets').sort()) {
+            if (!file.endsWith('.tar.gz')) continue;
+            const data = fs.readFileSync(path.join('dist-assets', file));
+            const hash = crypto.createHash('sha256').update(data).digest('hex');
+            chunks.push({
+              name: file.replace('.tar.gz', ''),
+              filename: file,
+              url: 'https://github.com/' + repo + '/releases/download/' + tag + '/' + file,
+              size: data.length,
+              sha256: hash,
+              required: file.includes('body') || file.includes('definitions'),
+            });
+          }
+
+          const manifest = {
+            version: tag,
+            generatedAt: new Date().toISOString(),
+            chunks,
+            totalSize: chunks.reduce((s, c) => s + c.size, 0),
+          };
+
+          fs.writeFileSync('dist-assets/assets-manifest.json', JSON.stringify(manifest, null, 2));
+          console.log(JSON.stringify(manifest, null, 2));
+          "
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
