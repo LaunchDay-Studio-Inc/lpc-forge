@@ -109,7 +109,7 @@ func _gather_save_data() -> Dictionary:
 \t\t\t"position_x": player.global_position.x,
 \t\t\t"position_y": player.global_position.y,
 \t\t\t"health": player.health if "health" in player else 100,
-\t\t\t"level": player.get("level") if player.get("level") else 1,
+\t\t\t"level": player.get("level") if player.get("level") != null else 1,
 \t\t}
 \t\tdata["scene"] = player.get_tree().current_scene.scene_file_path
 
@@ -124,7 +124,7 @@ func _apply_save_data(data: Dictionary) -> void:
 \tvar scene_path: String = data.get("scene", "")
 \tif scene_path != "":
 \t\tget_tree().change_scene_to_file(scene_path)
-\t\tawait get_tree().tree_changed
+\t\tawait get_tree().create_timer(0.1).timeout
 \t\tawait get_tree().process_frame
 
 \tvar player := _find_player()

@@ -95,7 +95,9 @@ func _spawn_pickup(pos: Vector2, item_id: String, amount: int) -> void:
 \ttween.tween_property(pickup, "position:y", pos.y - 4, 0.5).set_trans(Tween.TRANS_SINE)
 \ttween.tween_property(pickup, "position:y", pos.y + 4, 0.5).set_trans(Tween.TRANS_SINE)
 
-\tget_tree().current_scene.add_child(pickup)
+\tvar scene = get_tree().current_scene
+\tif scene:
+\t\tscene.add_child(pickup)
 `;
 
   return {

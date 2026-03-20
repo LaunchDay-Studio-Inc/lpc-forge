@@ -30,20 +30,20 @@ export function getParticlePreset(name: string): ParticlePreset | null {
 export function generateLightingScene(preset: LightingPreset): string {
   const { r, g, b, a } = preset.ambientColor;
   const lines: string[] = [];
-  const extCount = preset.lights.length > 0 ? 1 : 0;
+  const subResourceCount = preset.lights.some(l => l.type === 'point') ? 2 : 0;
 
-  lines.push(`[gd_scene load_steps=${1 + extCount} format=3]`);
+  lines.push(`[gd_scene load_steps=${1 + subResourceCount} format=3]`);
   lines.push('');
 
   // Light texture (use a simple gradient for PointLight2D)
   if (preset.lights.some(l => l.type === 'point')) {
+    lines.push(`[sub_resource type="Gradient" id="light_grad"]`);
+    lines.push(`colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)`);
+    lines.push('');
     lines.push(`[sub_resource type="GradientTexture2D" id="light_tex"]`);
     lines.push(`fill = 1`);
     lines.push(`fill_from = Vector2(0.5, 0.5)`);
     lines.push(`gradient = SubResource("light_grad")`);
-    lines.push('');
-    lines.push(`[sub_resource type="Gradient" id="light_grad"]`);
-    lines.push(`colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)`);
     lines.push('');
   }
 

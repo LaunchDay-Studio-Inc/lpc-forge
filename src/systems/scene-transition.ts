@@ -14,6 +14,7 @@ signal transition_finished
 
 var _target_scene := ""
 var _is_transitioning := false
+var _duration := 0.5
 
 func _ready() -> void:
 \tcolor_rect.color = Color.BLACK
@@ -24,6 +25,7 @@ func change_scene(scene_path: String, duration := 0.5) -> void:
 \t\treturn
 \t_is_transitioning = true
 \t_target_scene = scene_path
+\t_duration = duration
 \ttransition_started.emit()
 
 \tcolor_rect.visible = true
@@ -40,7 +42,7 @@ func _on_fade_out_done() -> void:
 \tawait get_tree().process_frame
 
 \tvar tween := create_tween()
-\ttween.tween_property(color_rect, "modulate:a", 0.0, 0.5)
+\ttween.tween_property(color_rect, "modulate:a", 0.0, _duration)
 \ttween.tween_callback(_on_fade_in_done)
 
 func _on_fade_in_done() -> void:

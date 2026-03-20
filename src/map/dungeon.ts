@@ -19,6 +19,10 @@ export function generateDungeon(config: DungeonConfig): GeneratedMap {
     corridorWidth = DEFAULT_CORRIDOR_WIDTH,
   } = config;
 
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) {
+    throw new Error(`Invalid map dimensions: ${width}×${height} (minimum 10×10)`);
+  }
+
   const rng = new SeededRNG(seed);
 
   // Initialize grid with walls
@@ -78,8 +82,15 @@ export function generateDungeon(config: DungeonConfig): GeneratedMap {
       // Leaf node — place a room
       const rw = rng.randomInt(roomMinSize, Math.min(roomMaxSize, node.w - 2));
       const rh = rng.randomInt(roomMinSize, Math.min(roomMaxSize, node.h - 2));
-      const rx = node.x + rng.randomInt(1, node.w - rw - 1);
-      const ry = node.y + rng.randomInt(1, node.h - rh - 1);
+
+      if (rw > node.w - 2 || rh > node.h - 2) return; // BSP node too small for a room
+
+      const maxOffX = Math.max(1, node.w - rw - 1);
+      const maxOffY = Math.max(1, node.h - rh - 1);
+      const offX = rng.randomInt(1, maxOffX);
+      const offY = rng.randomInt(1, maxOffY);
+      const rx = node.x + offX;
+      const ry = node.y + offY;
 
       const room: Room = {
         x: rx,

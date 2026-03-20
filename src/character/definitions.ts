@@ -47,8 +47,8 @@ async function loadCategoryDefinitions(
         if (def) {
           definitions.set(def.name, def);
         }
-      } catch {
-        // Skip invalid JSON files
+      } catch (e) {
+        console.warn(`Warning: Skipping invalid JSON file: ${fullPath}`, e instanceof Error ? e.message : e);
       }
     }
   }

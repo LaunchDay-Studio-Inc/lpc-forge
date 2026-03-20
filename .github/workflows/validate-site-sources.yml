@@ -42,5 +42,5 @@ jobs:
             echo ""
             echo "Git diff for untracked files:"
             git ls-files --others --exclude-standard
-            exit -1
+            exit 1
           fi

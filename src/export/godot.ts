@@ -363,10 +363,14 @@ function generateMapTscn(map: GeneratedMap, mapName: string, tileSize: number): 
 export async function scaffoldGodotProject(
   outputDir: string,
   projectName: string,
-  options?: { characterName?: string; mapName?: string },
+  options?: { characterName?: string; mapName?: string; viewportWidth?: number; viewportHeight?: number; spawnPoint?: { x: number; y: number } },
 ): Promise<void> {
   const charName = options?.characterName ?? 'player';
   const mapName = options?.mapName ?? 'dungeon';
+  const vpWidth = options?.viewportWidth ?? 1280;
+  const vpHeight = options?.viewportHeight ?? 720;
+  const spawnX = options?.spawnPoint ? options.spawnPoint.x * 32 : 400;
+  const spawnY = options?.spawnPoint ? options.spawnPoint.y * 32 : 400;
 
   await mkdir(outputDir, { recursive: true });
 
@@ -386,8 +390,8 @@ config/icon="res://icon.svg"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
+window/size/viewport_width=${vpWidth}
+window/size/viewport_height=${vpHeight}
 window/stretch/mode="canvas_items"
 
 [input]
@@ -412,6 +416,10 @@ attack={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":32,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
 }
+interact={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":69,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)]
+}
 
 [rendering]
 
@@ -432,7 +440,7 @@ textures/canvas_textures/default_texture_filter=0
 [node name="Map" parent="." instance=ExtResource("2")]
 
 [node name="Player" parent="." instance=ExtResource("1")]
-position = Vector2(400, 400)
+position = Vector2(${spawnX}, ${spawnY})
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 zoom = Vector2(2, 2)

@@ -113,6 +113,7 @@ export function generateWFC(config: WFCConfig): GeneratedMap {
   }
 
   // Fallback: fill with grass
+  console.warn(`WFC generation failed after ${maxRetries} retries — filling with grass fallback`);
   const fallback: TileType[][] = Array.from({ length: height }, () =>
     Array(width).fill(TT.GRASS),
   );

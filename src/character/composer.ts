@@ -125,29 +125,10 @@ export async function composeCharacter(
     }
   }
 
-  // Build universal sheets for each resolved layer
-  const layerBuffers: Buffer[] = [];
-
-  for (const layer of resolvedLayers) {
-    const buffer = await buildUniversalSheet(layer, spritesDir);
-    if (buffer) {
-      layerBuffers.push(buffer);
-    }
-  }
-
-  if (layerBuffers.length === 0) {
-    throw new Error('No valid layers could be loaded. Check that assets are installed (run: lpc-forge setup).');
-  }
-
-  // Composite all layers together
-  const composites = layerBuffers.map((input) => ({
-    input,
-    top: 0,
-    left: 0,
-    blend: 'over' as const,
-  }));
-
-  return sharp({
+  // Build and composite layers incrementally to reduce memory usage.
+  // Instead of holding all layer buffers in memory, composite one at a time
+  // onto an intermediate canvas and release each buffer after use.
+  let canvasBuffer = await sharp({
     create: {
       width: SHEET_WIDTH,
       height: SHEET_HEIGHT,
@@ -156,8 +137,25 @@ export async function composeCharacter(
     },
   })
     .png()
-    .composite(composites)
     .toBuffer();
+
+  let layerCount = 0;
+
+  for (const layer of resolvedLayers) {
+    const buffer = await buildUniversalSheet(layer, spritesDir);
+    if (buffer) {
+      canvasBuffer = await sharp(canvasBuffer)
+        .composite([{ input: buffer, top: 0, left: 0, blend: 'over' as const }])
+        .toBuffer();
+      layerCount++;
+    }
+  }
+
+  if (layerCount === 0) {
+    throw new Error('No valid layers could be loaded. Check that assets are installed (run: lpc-forge setup).');
+  }
+
+  return canvasBuffer;
 }
 
 function findFallbackBodyType(
@@ -227,8 +225,8 @@ async function buildUniversalSheet(
             top: animInfo.row * FRAME_SIZE,
             left: 0,
           });
-        } catch {
-          // Skip unreadable files
+        } catch (e) {
+          console.warn(`Warning: Could not load sprite file: ${altPath}`, e instanceof Error ? e.message : e);
         }
       }
       continue;
@@ -241,8 +239,8 @@ async function buildUniversalSheet(
         top: animInfo.row * FRAME_SIZE,
         left: 0,
       });
-    } catch {
-      // Skip unreadable files
+    } catch (e) {
+      console.warn(`Warning: Could not load sprite file: ${animPath}`, e instanceof Error ? e.message : e);
     }
   }
 

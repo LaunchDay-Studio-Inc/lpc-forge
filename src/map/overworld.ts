@@ -11,6 +11,10 @@ export function generateOverworld(config: OverworldConfig): GeneratedMap {
     temperature = 0.5,
   } = config;
 
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) {
+    throw new Error(`Invalid map dimensions: ${width}×${height} (minimum 10×10)`);
+  }
+
   const rng = new SeededRNG(seed);
 
   // Generate heightmap using diamond-square

@@ -19,6 +19,10 @@ export function generateCave(config: CellularConfig): GeneratedMap {
     initialDensity = DEFAULT_DENSITY,
   } = config;
 
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) {
+    throw new Error(`Invalid map dimensions: ${width}×${height} (minimum 10×10)`);
+  }
+
   const rng = new SeededRNG(seed);
 
   // Initialize grid randomly
@@ -97,10 +101,13 @@ export function generateCave(config: CellularConfig): GeneratedMap {
 
   // Create pseudo-rooms from connected areas
   const rooms: Room[] = regions.slice(0, 5).map((r, i) => {
-    const minX = Math.min(...r.cells.map((c) => c.x));
-    const minY = Math.min(...r.cells.map((c) => c.y));
-    const maxX = Math.max(...r.cells.map((c) => c.x));
-    const maxY = Math.max(...r.cells.map((c) => c.y));
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of r.cells) {
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x > maxX) maxX = c.x;
+      if (c.y > maxY) maxY = c.y;
+    }
     return {
       id: i,
       x: minX,
@@ -181,8 +188,10 @@ function floodFill(
 ): { x: number; y: number }[] {
   const cells: { x: number; y: number }[] = [];
   const stack: [number, number][] = [[startX, startY]];
+  const MAX_REGION_SIZE = width * height; // can't be larger than the map
 
   while (stack.length > 0) {
+    if (cells.length >= MAX_REGION_SIZE) break;
     const [x, y] = stack.pop()!;
     if (x < 0 || x >= width || y < 0 || y >= height) continue;
     if (grid[y][x]) continue;

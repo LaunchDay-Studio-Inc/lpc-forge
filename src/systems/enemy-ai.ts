@@ -35,6 +35,7 @@ var patrol_origin: Vector2
 var patrol_target: Vector2
 var direction := "down"
 var can_attack := true
+var _hurt_processing := false
 
 func _ready() -> void:
 \thealth = max_health
@@ -57,13 +58,13 @@ func _physics_process(delta: float) -> void:
 \t\tState.IDLE:
 \t\t\t_process_idle()
 \t\tState.PATROL:
-\t\t\t_process_patrol()
+\t\t\t_process_patrol(delta)
 \t\tState.CHASE:
-\t\t\t_process_chase()
+\t\t\t_process_chase(delta)
 \t\tState.ATTACK:
 \t\t\tpass
 \t\tState.FLEE:
-\t\t\t_process_flee()
+\t\t\t_process_flee(delta)
 \t\tState.HURT, State.DEAD:
 \t\t\tpass
 
@@ -75,9 +76,9 @@ func _process_idle() -> void:
 \t\tif patrol_timer.is_stopped():
 \t\t\tpatrol_timer.start()
 
-func _process_patrol() -> void:
+func _process_patrol(delta: float) -> void:
 \tvar dir := (patrol_target - global_position).normalized()
-\tvelocity = dir * speed
+\tvelocity = dir * speed * delta
 \t_update_direction(dir)
 \t_play_anim("walk")
 \tmove_and_slide()
@@ -85,7 +86,7 @@ func _process_patrol() -> void:
 \t\tpatrol_target = _random_patrol_point()
 \t\t_change_state(State.IDLE)
 
-func _process_chase() -> void:
+func _process_chase(delta: float) -> void:
 \tif not target or not is_instance_valid(target):
 \t\ttarget = null
 \t\t_change_state(State.IDLE)
@@ -98,17 +99,17 @@ func _process_chase() -> void:
 \t\t_change_state(State.ATTACK)
 \t\treturn
 \tvar dir := (target.global_position - global_position).normalized()
-\tvelocity = dir * chase_speed
+\tvelocity = dir * chase_speed * delta
 \t_update_direction(dir)
 \t_play_anim("walk")
 \tmove_and_slide()
 
-func _process_flee() -> void:
+func _process_flee(delta: float) -> void:
 \tif not target or not is_instance_valid(target):
 \t\t_change_state(State.IDLE)
 \t\treturn
 \tvar dir := (global_position - target.global_position).normalized()
-\tvelocity = dir * chase_speed
+\tvelocity = dir * chase_speed * delta
 \t_update_direction(dir)
 \t_play_anim("walk")
 \tmove_and_slide()
@@ -128,7 +129,11 @@ func _change_state(new_state: State) -> void:
 \t\tState.HURT:
 \t\t\tvelocity = Vector2.ZERO
 \t\t\t_play_anim("hurt")
+\t\t\tif _hurt_processing:
+\t\t\t\treturn
+\t\t\t_hurt_processing = true
 \t\t\tawait get_tree().create_timer(0.4).timeout
+\t\t\t_hurt_processing = false
 \t\t\tif state == State.HURT:
 \t\t\t\t_change_state(State.CHASE if target else State.IDLE)
 \t\tState.DEAD:

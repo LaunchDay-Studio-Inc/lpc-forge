@@ -47,6 +47,7 @@ func _load_item_database() -> void:
 \t\t"ruby": {"name": "Ruby", "type": "gem", "icon": 8, "description": "A precious red gem.", "stackable": true, "value": 100},
 \t\t"spell_scroll": {"name": "Spell Scroll", "type": "consumable", "icon": 9, "description": "Contains a magical spell.", "stackable": true, "value": 25},
 \t\t"coin": {"name": "Gold Coin", "type": "currency", "icon": 10, "description": "Shiny gold coin.", "stackable": true, "value": 1},
+\t\t"emerald": {"name": "Emerald", "type": "gem", "icon": 11, "description": "A precious green gem.", "stackable": true, "value": 120},
 \t}
 
 func get_item_data(item_id: String) -> Dictionary:
@@ -94,7 +95,7 @@ func remove_item(item_id: String, amount: int = 1) -> bool:
 \t\t\treturn true
 \treturn false
 
-func has_item(item_id: String, amount: int = 1) -> int:
+func has_item(item_id: String, amount: int = 1) -> bool:
 \tvar total := 0
 \tfor i in range(MAX_SLOTS):
 \t\tif items[i].get("id", "") == item_id:
@@ -159,7 +160,7 @@ func save_data() -> Dictionary:
 \treturn {"items": items.duplicate(true), "equipment": equipment.duplicate(true)}
 
 func load_data(data: Dictionary) -> void:
-\titems = data.get("items", [])
+\titems.assign(data.get("items", []))
 \tequipment = data.get("equipment", {})
 \tinventory_changed.emit()
 `;

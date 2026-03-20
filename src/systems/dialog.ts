@@ -230,6 +230,9 @@ func _ready() -> void:
 \t\tvar file := FileAccess.open(dialog_file, FileAccess.READ)
 \t\tvar json := JSON.new()
 \t\tif json.parse(file.get_as_text()) == OK:
+\t\t\tif not json.data is Array:
+\t\t\t\tpush_error("Dialog file must contain a JSON array")
+\t\t\t\treturn
 \t\t\tdialog_data = json.data
 \tif dialog_data.is_empty():
 \t\tdialog_data = [

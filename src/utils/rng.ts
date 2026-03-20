@@ -29,6 +29,7 @@ export class SeededRNG {
 
   /** Returns an integer in [min, max] (inclusive) */
   randomInt(min: number, max: number): number {
+    if (min > max) [min, max] = [max, min];
     return Math.floor(this.random() * (max - min + 1)) + min;
   }
 
@@ -48,6 +49,9 @@ export class SeededRNG {
 
   /** Pick a random element from an array */
   pick<T>(array: readonly T[]): T {
+    if (array.length === 0) {
+      throw new Error('Cannot pick from an empty array');
+    }
     return array[this.randomInt(0, array.length - 1)];
   }
 }

@@ -5,7 +5,9 @@ const SHEETS_DIR = "sheet_definitions" + path.sep;
 const DEBUG = false; // change this to print debug log
 const onlyIfTemplate = false; // print debugging log only if there is a template
 
-require("child_process").fork("scripts/zPositioning/parse_zpos.cjs");
+if (require.main === module) {
+  require("child_process").fork("scripts/zPositioning/parse_zpos.cjs");
+}
 
 // Collect metadata for runtime use
 const licensesFound = [];
@@ -14,11 +16,11 @@ const aliasMetadata = {};
 const categoryTree = { items: [], children: {} };
 
 function searchCredit(fileName, credits, origFileName) {
-  if (credits.count <= 0) {
+  if (credits.length <= 0) {
     console.error("no credits for filename:", fileName);
     return undefined;
   }
-  if (credits.count === 1) {
+  if (credits.length === 1) {
     if (!credits[0].file.includes(fileName)) {
       console.error("Wrong credit at filename:", fileName);
     }
@@ -297,7 +299,7 @@ function parseJson(filePath, fileName) {
             const licenses = '"' + creditToUse.licenses.join(",") + '" ';
             const authors = '"' + creditToUse.authors.join(",") + '" ';
             const urls = '"' + creditToUse.urls.join(",") + '" ';
-            const notes = '"' + creditToUse.notes.replaceAll('"', "**") + '" ';
+            const notes = '"' + (creditToUse.notes ?? '').replaceAll('"', "**") + '" ';
             if (!addedCreditsFor.includes(imageFileName)) {
               const quotedShortName = '"' + file + variant + '.png"';
               listItemsCSV.push({
@@ -321,7 +323,9 @@ function parseJson(filePath, fileName) {
 
   for (const sex of requiredSexes) {
     // Store licenses in metadata
-    itemMetadata[itemId].licenses[sex] = listCreditToUse.licenses;
+    if (listCreditToUse && listCreditToUse.licenses) {
+      itemMetadata[itemId].licenses[sex] = listCreditToUse.licenses;
+    }
   }
 
   let parsed = {};

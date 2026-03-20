@@ -21,6 +21,10 @@ export function generateTown(config: TownConfig): GeneratedMap {
     marketSize = DEFAULT_MARKET_SIZE,
   } = config;
 
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) {
+    throw new Error(`Invalid map dimensions: ${width}×${height} (minimum 10×10)`);
+  }
+
   const rng = new SeededRNG(seed);
   const numBuildings = Math.max(4, Math.min(8, buildings));
 
@@ -69,7 +73,9 @@ export function generateTown(config: TownConfig): GeneratedMap {
 
   for (let dy = 0; dy < sqSize; dy++) {
     for (let dx = 0; dx < sqSize; dx++) {
-      tiles[sqY + dy][sqX + dx] = TT.STONE;
+      if (sqY + dy >= 0 && sqY + dy < height && sqX + dx >= 0 && sqX + dx < width) {
+        tiles[sqY + dy][sqX + dx] = TT.STONE;
+      }
     }
   }
 

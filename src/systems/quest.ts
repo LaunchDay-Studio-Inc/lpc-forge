@@ -91,6 +91,10 @@ func _grant_rewards(quest: Dictionary) -> void:
 \tif inv and rewards.has("items"):
 \t\tfor item in rewards["items"]:
 \t\t\tinv.add_item(item["id"], item.get("amount", 1))
+\tif rewards.has("xp"):
+\t\tvar player_node = get_node_or_null("/root/Main/Player")
+\t\tif player_node and player_node.has_method("add_xp"):
+\t\t\tplayer_node.add_xp(rewards["xp"])
 
 func is_quest_active(quest_id: String) -> bool:
 \treturn active_quests.has(quest_id)

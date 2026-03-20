@@ -81,9 +81,7 @@ export async function extractPortrait(
 export async function extractAllPortraits(
   outputDir: string,
 ): Promise<PortraitResult[]> {
-  // This is a convenience wrapper — actual batch portrait extraction
-  // requires compositing each preset first, which is handled by the CLI command
-  const portraitDir = join(outputDir, 'portraits');
-  await mkdir(portraitDir, { recursive: true });
-  return [];
+  throw new Error(
+    'extractAllPortraits is not implemented. Use extractPortrait() with individual character sheets instead.',
+  );
 }

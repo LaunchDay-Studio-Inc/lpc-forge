@@ -3,16 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { UITheme, UIKitResult } from './types.js';
 import { UI_THEMES } from './themes.js';
-
-function hexToRGBA(hex: string): { r: number; g: number; b: number; alpha: number } {
-  const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.substring(0, 2), 16),
-    g: parseInt(h.substring(2, 4), 16),
-    b: parseInt(h.substring(4, 6), 16),
-    alpha: 255,
-  };
-}
+import { hexToRGBA, setPixel, fillRect } from './pixel-utils.js';
 
 function createPixelBuffer(
   width: number,
@@ -30,39 +21,6 @@ function createPixelBuffer(
   return buf;
 }
 
-function setPixel(
-  buf: Buffer,
-  width: number,
-  x: number,
-  y: number,
-  color: string,
-): void {
-  if (x < 0 || y < 0 || x >= width) return;
-  const idx = (y * width + x) * 4;
-  if (idx + 3 >= buf.length) return;
-  const { r, g, b, alpha } = hexToRGBA(color);
-  buf[idx] = r;
-  buf[idx + 1] = g;
-  buf[idx + 2] = b;
-  buf[idx + 3] = alpha;
-}
-
-function drawRect(
-  buf: Buffer,
-  width: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  color: string,
-): void {
-  for (let dy = 0; dy < h; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      setPixel(buf, width, x + dx, y + dy, color);
-    }
-  }
-}
-
 function drawBorder(
   buf: Buffer,
   width: number,
@@ -71,31 +29,32 @@ function drawBorder(
   borderColor: string,
   cornerRadius: number,
 ): void {
+  const bc = hexToRGBA(borderColor);
   // Top and bottom borders
   for (let bw = 0; bw < borderWidth; bw++) {
     for (let x = cornerRadius; x < width - cornerRadius; x++) {
-      setPixel(buf, width, x, bw, borderColor);
-      setPixel(buf, width, x, height - 1 - bw, borderColor);
+      setPixel(buf, width, height, x, bw, bc);
+      setPixel(buf, width, height, x, height - 1 - bw, bc);
     }
   }
   // Left and right borders
   for (let bw = 0; bw < borderWidth; bw++) {
     for (let y = cornerRadius; y < height - cornerRadius; y++) {
-      setPixel(buf, width, bw, y, borderColor);
-      setPixel(buf, width, width - 1 - bw, y, borderColor);
+      setPixel(buf, width, height, bw, y, bc);
+      setPixel(buf, width, height, width - 1 - bw, y, bc);
     }
   }
   // Corners (pixel-art style: fill diagonal steps)
   for (let i = 0; i < cornerRadius; i++) {
     for (let bw = 0; bw < borderWidth; bw++) {
       // Top-left
-      setPixel(buf, width, cornerRadius - 1 - i + bw, i, borderColor);
+      setPixel(buf, width, height, cornerRadius - 1 - i + bw, i, bc);
       // Top-right
-      setPixel(buf, width, width - cornerRadius + i - bw, i, borderColor);
+      setPixel(buf, width, height, width - cornerRadius + i - bw, i, bc);
       // Bottom-left
-      setPixel(buf, width, cornerRadius - 1 - i + bw, height - 1 - i, borderColor);
+      setPixel(buf, width, height, cornerRadius - 1 - i + bw, height - 1 - i, bc);
       // Bottom-right
-      setPixel(buf, width, width - cornerRadius + i - bw, height - 1 - i, borderColor);
+      setPixel(buf, width, height, width - cornerRadius + i - bw, height - 1 - i, bc);
     }
   }
 }
@@ -111,9 +70,9 @@ async function generatePanel(
   drawBorder(buf, width, height, theme.borderWidth, theme.borderColor, theme.cornerRadius);
 
   // Inner highlight (1px lighter border inside)
-  const highlightColor = lightenColor(theme.borderColor, 30);
+  const highlightColor = hexToRGBA(lightenColor(theme.borderColor, 30));
   for (let x = theme.borderWidth + theme.cornerRadius; x < width - theme.borderWidth - theme.cornerRadius; x++) {
-    setPixel(buf, width, x, theme.borderWidth, highlightColor);
+    setPixel(buf, width, height, x, theme.borderWidth, highlightColor);
   }
 
   await sharp(buf, { raw: { width, height, channels: 4 } })
@@ -136,30 +95,34 @@ async function generateButton(
   ];
   const totalHeight = height * 4;
   const buf = createPixelBuffer(width, totalHeight, '#00000000');
+  const borderCol = hexToRGBA(theme.borderColor);
 
   for (let state = 0; state < 4; state++) {
     const yOff = state * height;
+    const stateColor = hexToRGBA(stateColors[state]);
     // Fill
-    drawRect(buf, width, 1, yOff + 1, width - 2, height - 2, stateColors[state]);
+    fillRect(buf, width, totalHeight, 1, yOff + 1, width - 2, height - 2, stateColor);
     // Border
     for (let x = 1; x < width - 1; x++) {
-      setPixel(buf, width, x, yOff, theme.borderColor);
-      setPixel(buf, width, x, yOff + height - 1, theme.borderColor);
+      setPixel(buf, width, totalHeight, x, yOff, borderCol);
+      setPixel(buf, width, totalHeight, x, yOff + height - 1, borderCol);
     }
     for (let y = 1; y < height - 1; y++) {
-      setPixel(buf, width, 0, yOff + y, theme.borderColor);
-      setPixel(buf, width, width - 1, yOff + y, theme.borderColor);
+      setPixel(buf, width, totalHeight, 0, yOff + y, borderCol);
+      setPixel(buf, width, totalHeight, width - 1, yOff + y, borderCol);
     }
     // Pressed state: dark top edge for "pushed in" look
     if (state === 2) {
+      const pressedColor = hexToRGBA(darkenColor(stateColors[state], 20));
       for (let x = 1; x < width - 1; x++) {
-        setPixel(buf, width, x, yOff + 1, darkenColor(stateColors[state], 20));
+        setPixel(buf, width, totalHeight, x, yOff + 1, pressedColor);
       }
     }
     // Normal/hover: light bottom highlight
     if (state < 2) {
+      const highlightCol = hexToRGBA(lightenColor(stateColors[state], 20));
       for (let x = 2; x < width - 2; x++) {
-        setPixel(buf, width, x, yOff + height - 2, lightenColor(stateColors[state], 20));
+        setPixel(buf, width, totalHeight, x, yOff + height - 2, highlightCol);
       }
     }
   }
@@ -180,23 +143,26 @@ async function generateBar(
 ): Promise<void> {
   const totalHeight = height * 2;
   const buf = createPixelBuffer(width, totalHeight, '#00000000');
+  const borderCol = hexToRGBA(borderColor);
+  const bgCol = hexToRGBA(bgColor);
+  const fillCol = hexToRGBA(fillColor);
 
   for (let variant = 0; variant < 2; variant++) {
     const yOff = variant * height;
     // Background
-    drawRect(buf, width, 1, yOff + 1, width - 2, height - 2, bgColor);
+    fillRect(buf, width, totalHeight, 1, yOff + 1, width - 2, height - 2, bgCol);
     // Fill (only for "full" variant)
     if (variant === 1) {
-      drawRect(buf, width, 2, yOff + 2, width - 4, height - 4, fillColor);
+      fillRect(buf, width, totalHeight, 2, yOff + 2, width - 4, height - 4, fillCol);
     }
     // Border
     for (let x = 1; x < width - 1; x++) {
-      setPixel(buf, width, x, yOff, borderColor);
-      setPixel(buf, width, x, yOff + height - 1, borderColor);
+      setPixel(buf, width, totalHeight, x, yOff, borderCol);
+      setPixel(buf, width, totalHeight, x, yOff + height - 1, borderCol);
     }
     for (let y = 1; y < height - 1; y++) {
-      setPixel(buf, width, 0, yOff + y, borderColor);
-      setPixel(buf, width, width - 1, yOff + y, borderColor);
+      setPixel(buf, width, totalHeight, 0, yOff + y, borderCol);
+      setPixel(buf, width, totalHeight, width - 1, yOff + y, borderCol);
     }
   }
 
@@ -216,17 +182,17 @@ async function generateSlot(
 
   for (let variant = 0; variant < 2; variant++) {
     const yOff = variant * size;
-    const bgCol = variant === 0 ? darkenColor(theme.bgColor, 10) : theme.bgColor;
-    drawRect(buf, size, 1, yOff + 1, size - 2, size - 2, bgCol);
+    const bgCol = hexToRGBA(variant === 0 ? darkenColor(theme.bgColor, 10) : theme.bgColor);
+    fillRect(buf, size, totalHeight, 1, yOff + 1, size - 2, size - 2, bgCol);
 
-    const bCol = variant === 0 ? theme.borderColor : theme.accentColor;
+    const bCol = hexToRGBA(variant === 0 ? theme.borderColor : theme.accentColor);
     for (let x = 1; x < size - 1; x++) {
-      setPixel(buf, size, x, yOff, bCol);
-      setPixel(buf, size, x, yOff + size - 1, bCol);
+      setPixel(buf, size, totalHeight, x, yOff, bCol);
+      setPixel(buf, size, totalHeight, x, yOff + size - 1, bCol);
     }
     for (let y = 1; y < size - 1; y++) {
-      setPixel(buf, size, 0, yOff + y, bCol);
-      setPixel(buf, size, size - 1, yOff + y, bCol);
+      setPixel(buf, size, totalHeight, 0, yOff + y, bCol);
+      setPixel(buf, size, totalHeight, size - 1, yOff + y, bCol);
     }
   }
 
@@ -243,6 +209,8 @@ async function generateCursors(
   const size = 16;
   const totalWidth = size * 4;
   const buf = createPixelBuffer(totalWidth, size, '#00000000');
+  const accentCol = hexToRGBA(theme.accentColor);
+  const textCol = hexToRGBA(theme.textColor);
 
   // Arrow cursor (state 0)
   const arrowPixels = [
@@ -254,7 +222,7 @@ async function generateCursors(
     [6,8],[7,8],
   ];
   for (const [px, py] of arrowPixels) {
-    setPixel(buf, totalWidth, px, py, theme.accentColor);
+    setPixel(buf, totalWidth, size, px, py, accentCol);
   }
   // Fill inner arrow
   const arrowFill = [
@@ -264,14 +232,14 @@ async function generateCursors(
     [0,6],[1,6],
   ];
   for (const [px, py] of arrowFill) {
-    setPixel(buf, totalWidth, px, py, theme.textColor);
+    setPixel(buf, totalWidth, size, px, py, textCol);
   }
 
   // Simple crosshair (state 3) — centered at offset 3*16
   for (let i = 2; i <= 12; i++) {
     if (i >= 6 && i <= 8) continue;
-    setPixel(buf, totalWidth, 3 * size + i, 7, theme.accentColor);
-    setPixel(buf, totalWidth, 3 * size + 7, i, theme.accentColor);
+    setPixel(buf, totalWidth, size, 3 * size + i, 7, accentCol);
+    setPixel(buf, totalWidth, size, 3 * size + 7, i, accentCol);
   }
 
   await sharp(buf, { raw: { width: totalWidth, height: size, channels: 4 } })

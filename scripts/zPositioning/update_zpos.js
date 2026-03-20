@@ -6,9 +6,9 @@ const SHEETS_DIR = "sheet_definitions" + path.sep;
 const csv = fs.readFileSync('scripts/zPositioning/z_positions.csv').toString().split("\n");
 
 // Read sheet_definitions/*.json line by line recursively and update zPos based on csv
-const sheets = fs.readdirSync(SHEETS_DIR, { 
+fs.readdirSync(SHEETS_DIR, {
   recursive: true,
-  withFileTypes: true 
+  withFileTypes: true
 }).forEach(file => {
   if (!file.name.includes('.json') || file.isDirectory()) {
     return
@@ -21,10 +21,11 @@ const sheets = fs.readdirSync(SHEETS_DIR, {
       var entryIdx = 0;
       for (let entry in csv) {
         const item = csv[entryIdx];
-        if (item.includes(file.name) && item.includes(`layer_${jdx}`)) {
+        const fields = item.split(",");
+        if (fields[0] === file.name.replace('.json', '') && fields[1] === `layer_${jdx}`) {
           const requiredZposition = parseInt(item.split(",")[2]);
           definition[`layer_${jdx}`].zPos = requiredZposition;
-          fs.writeFileSync(fullPath, JSON.stringify(definition, null, 2), function(err) { });
+          fs.writeFileSync(fullPath, JSON.stringify(definition, null, 2));
           console.log('Updated:', file.name);
         }
         entryIdx += 1;

@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir, hostname, platform, arch } from 'node:os';
+import { homedir, hostname, platform, arch, networkInterfaces } from 'node:os';
 import { createHmac } from 'node:crypto';
 
 const LICENSE_DIR = join(homedir(), '.lpc-forge');
@@ -13,7 +14,11 @@ const LICENSE_FILE = join(LICENSE_DIR, 'license.json');
  * $10 is easier. Determined crackers will always win; we optimize for the
  * honest middle.
  */
-const SIGNING_SEED = 'lpc-forge:blueth:2026';
+function getSigningKey(): string {
+  const base = Buffer.from('bHBjLWZvcmdlOnByZW1pdW06c2lnbmluZw==', 'base64').toString();
+  const entropy = `${hostname()}:${platform()}:${arch()}`;
+  return createHmac('sha256', base).update(entropy).digest('hex');
+}
 
 export interface LicenseInfo {
   /** The license key from Gumroad */
@@ -40,8 +45,32 @@ interface StoredLicense extends LicenseInfo {
 // ─── Machine Fingerprint ──────────────────────────────────────────────
 
 function getMachineFingerprint(): string {
-  const raw = `${hostname()}:${platform()}:${arch()}:${homedir()}`;
-  return createHmac('sha256', SIGNING_SEED).update(raw).digest('hex').slice(0, 16);
+  const parts = [hostname(), platform(), arch(), homedir()];
+
+  // Add first non-internal MAC address for hardware binding
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] ?? []) {
+      if (!net.internal && net.mac && net.mac !== '00:00:00:00:00:00') {
+        parts.push(net.mac);
+        break;
+      }
+    }
+    if (parts.length > 4) break;
+  }
+
+  // Try /etc/machine-id on Linux
+  if (platform() === 'linux') {
+    try {
+      const machineId = readFileSync('/etc/machine-id', 'utf-8').trim();
+      if (machineId) parts.push(machineId);
+    } catch {
+      // Not available, skip
+    }
+  }
+
+  const raw = parts.join(':');
+  return createHmac('sha256', getSigningKey()).update(raw).digest('hex').slice(0, 16);
 }
 
 // ─── HMAC Signing ─────────────────────────────────────────────────────
@@ -55,7 +84,7 @@ function signLicense(data: Omit<LicenseInfo, 'signature'>): string {
     data.lastVerifiedAt,
     data.machineId,
   ].join('|');
-  return createHmac('sha256', SIGNING_SEED).update(payload).digest('hex');
+  return createHmac('sha256', getSigningKey()).update(payload).digest('hex');
 }
 
 function verifySignature(license: LicenseInfo): boolean {
@@ -164,7 +193,7 @@ async function revalidateOnline(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '-2jxD5LR4p_tXnvxMiWU7g==',
+        product_id: '-2jxD5LR4p_tXnvxMiWU7g==',
         license_key: license.key,
         increment_uses_count: 'false', // Don't increment on re-validation
       }),
@@ -266,7 +295,7 @@ export async function activateLicense(licenseKey: string): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        product_id: process.env.LPC_FORGE_PRODUCT_ID ?? '-2jxD5LR4p_tXnvxMiWU7g==',
+        product_id: '-2jxD5LR4p_tXnvxMiWU7g==',
         license_key: licenseKey,
         increment_uses_count: 'true',
       }),
@@ -307,29 +336,9 @@ export async function activateLicense(licenseKey: string): Promise<{
       message: 'License activated successfully!',
     };
   } catch (err) {
-    // Offline activation — allow but mark as unverified
-    const now = new Date().toISOString();
-    const machineId = getMachineFingerprint();
-    // Set lastVerifiedAt to epoch so it triggers online check on first use
-    const licenseData: Omit<LicenseInfo, 'signature'> = {
-      key: licenseKey,
-      email: 'offline-activation',
-      product: 'lpc-forge-premium',
-      activatedAt: now,
-      lastVerifiedAt: new Date(0).toISOString(),
-      machineId,
-    };
-
-    const license: LicenseInfo = {
-      ...licenseData,
-      signature: signLicense(licenseData),
-    };
-
-    await storeLicense(license);
-
     return {
-      success: true,
-      message: 'License stored (offline — will verify online on next use).',
+      success: false,
+      message: 'Network error — could not verify license with Gumroad. Please check your internet connection and try again.',
     };
   }
 }
