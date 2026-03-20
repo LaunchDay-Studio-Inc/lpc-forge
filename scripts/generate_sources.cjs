@@ -351,8 +351,8 @@ const files = fs.readdirSync(SHEETS_DIR, {
   recursive: true,
   withFileTypes: true 
 }).sort((a, b) => {
-  const pa = path.join(a.path, a.name);
-  const pb = path.join(b.path, b.name);
+  const pa = path.join(a.parentPath || a.path, a.name);
+  const pb = path.join(b.parentPath || b.path, b.name);
 
   const depthA = pa.split(path.sep).length;
   const depthB = pb.split(path.sep).length;
@@ -368,18 +368,18 @@ files.forEach(file => {
     return;
   } else if (file.name.startsWith("meta_")) {
     // Handle Category Tree
-    parseTree(file.path, file.name);
+    parseTree(file.parentPath || file.path, file.name);
     return;
   } else {
     let parsedResult = null;
     try {
-      parsedResult = parseJson(file.path, file.name);
+      parsedResult = parseJson(file.parentPath || file.path, file.name);
     } catch (e) {
       if (DEBUG && !onlyIfTemplate)
         console.log(e);
       return;
     }
-    csvList.push({path: file.path.replace(SHEETS_DIR, ''), csv: parsedResult.csv});
+    csvList.push({path: (file.parentPath || file.path).replace(SHEETS_DIR, ''), csv: parsedResult.csv});
   }
 });
 
