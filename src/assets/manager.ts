@@ -6,11 +6,11 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import {
-  mkdir, readFile, writeFile, rm, stat, readdir,
+  mkdir, readFile, writeFile, rm, stat, readdir, cp,
 } from 'node:fs/promises';
 import { get as httpsGet } from 'node:https';
 import { get as httpGet, type IncomingMessage } from 'node:http';
-import { homedir, platform } from 'node:os';
+import { homedir, platform, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -254,6 +254,73 @@ export async function fetchRemoteManifest(version?: string): Promise<AssetManife
 }
 
 // ──────────────────────────────────────────────
+// Git clone fallback
+// ──────────────────────────────────────────────
+
+/** Check if git is available on the system */
+async function isGitAvailable(): Promise<boolean> {
+  try {
+    await execFileAsync('git', ['--version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fall back to git clone when GitHub Releases are unavailable.
+ * Clones the repo to a temp dir, copies needed directories to the asset cache.
+ */
+async function downloadAssetsViaGitClone(
+  assetDir: string,
+  options: DownloadOptions = {},
+): Promise<void> {
+  if (!(await isGitAvailable())) {
+    throw new Error(
+      'Git is required to download LPC assets. Install git and try again.\n' +
+      'Alternatively, manually clone:\n' +
+      `  git clone --depth 1 https://github.com/${GITHUB_REPO}.git\n` +
+      '  Then set LPC_FORGE_ASSETS=/path/to/cloned/repo',
+    );
+  }
+
+  const cloneDir = join(tmpdir(), `lpc-forge-clone-${Date.now()}`);
+
+  try {
+    await mkdir(assetDir, { recursive: true });
+
+    // Clone (shallow) into temp dir
+    await execFileAsync('git', [
+      'clone', '--depth', '1',
+      `https://github.com/${GITHUB_REPO}.git`,
+      cloneDir,
+    ], { timeout: 600_000 }); // 10 minute timeout
+
+    // Copy needed directories
+    if (options.minimal) {
+      // Minimal: only sheet_definitions + spritesheets/body
+      await cp(join(cloneDir, 'sheet_definitions'), join(assetDir, 'sheet_definitions'), { recursive: true });
+      await mkdir(join(assetDir, 'spritesheets'), { recursive: true });
+      await cp(join(cloneDir, 'spritesheets', 'body'), join(assetDir, 'spritesheets', 'body'), { recursive: true });
+    } else {
+      await cp(join(cloneDir, 'spritesheets'), join(assetDir, 'spritesheets'), { recursive: true });
+      await cp(join(cloneDir, 'sheet_definitions'), join(assetDir, 'sheet_definitions'), { recursive: true });
+    }
+
+    // Write local manifest
+    const localManifest: LocalManifest = {
+      version: 'git-clone',
+      installedAt: new Date().toISOString(),
+      chunks: ['git-clone'],
+    };
+    await writeFile(join(assetDir, LOCAL_MANIFEST), JSON.stringify(localManifest, null, 2));
+  } finally {
+    // Clean up temp clone
+    await rm(cloneDir, { recursive: true, force: true });
+  }
+}
+
+// ──────────────────────────────────────────────
 // Download + extract
 // ──────────────────────────────────────────────
 
@@ -287,7 +354,15 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
 
   // 1. Fetch manifest
   options.onProgress?.({ phase: 'fetching-manifest' });
-  const manifest = await fetchRemoteManifest();
+
+  let manifest: AssetManifest;
+  try {
+    manifest = await fetchRemoteManifest();
+  } catch {
+    // GitHub Releases not available — fall back to git clone
+    await downloadAssetsViaGitClone(assetDir, options);
+    return;
+  }
 
   // 2. Filter chunks
   let chunks = manifest.chunks;
@@ -518,9 +593,22 @@ export async function downloadWithProgress(options: DownloadOptions = {}): Promi
   try {
     manifest = await fetchRemoteManifest();
     manifestSpinner.succeed('Asset manifest fetched');
-  } catch (err) {
-    manifestSpinner.fail('Failed to fetch asset manifest');
-    throw err;
+  } catch {
+    manifestSpinner.text = 'GitHub Releases unavailable, falling back to git clone...';
+    try {
+      const assetDir = options.path ? resolve(options.path) : getAssetDir();
+      manifestSpinner.text = `Downloading assets via git clone (~1.3 GB)...`;
+      await downloadAssetsViaGitClone(assetDir, options);
+      manifestSpinner.succeed('Assets installed via git clone');
+      const finalDir = options.path ? resolve(options.path) : getAssetDir();
+      console.log('');
+      console.log(chalk.green(`✅ Assets installed → ${finalDir}`));
+      console.log('');
+      return;
+    } catch (cloneErr) {
+      manifestSpinner.fail('Failed to download assets');
+      throw cloneErr;
+    }
   }
 
   let chunks = manifest.chunks;

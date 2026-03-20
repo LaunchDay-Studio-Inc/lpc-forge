@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { resolve, join } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { IconEntry } from './ui/types.js';
 import { resolveAssetRoot, ensureAssets } from './assets/manager.js';
@@ -10,12 +11,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(__dirname, '..');
 const REPO_ROOT = resolveAssetRoot(PACKAGE_ROOT);
 
+const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8'));
+
 const program = new Command();
 
 program
   .name('lpc-forge')
   .description('Complete 2D game asset pipeline — character compositor, map generator, Godot 4 exporter')
-  .version('0.1.0');
+  .version(pkg.version);
 
 // === CHARACTER COMMAND ===
 program
