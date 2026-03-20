@@ -24,25 +24,23 @@ jobs:
           # Package sheet definitions (required, small)
           tar czf dist-assets/lpc-assets-definitions.tar.gz sheet_definitions/
 
-          cd spritesheets
+          # Body sprites (required base)
+          tar czf dist-assets/lpc-assets-body.tar.gz \
+            spritesheets/body/ spritesheets/shadow/ spritesheets/eyes/ spritesheets/head/
 
-          # Body sprites (required base, ~326 MB)
-          tar czf ../dist-assets/lpc-assets-body.tar.gz \
-            body/ shadow/ eyes/ head/
+          # Equipment — armor, weapons, shields, limbs
+          tar czf dist-assets/lpc-assets-equipment.tar.gz \
+            spritesheets/torso/ spritesheets/shield/ spritesheets/weapon/ spritesheets/arms/ \
+            spritesheets/shoulders/ spritesheets/bauldron/ spritesheets/wrists/ spritesheets/legs/ spritesheets/feet/
 
-          # Equipment — armor, weapons, shields, limbs (~389 MB)
-          tar czf ../dist-assets/lpc-assets-equipment.tar.gz \
-            torso/ shield/ weapon/ arms/ shoulders/ bauldron/ wrists/ legs/ feet/
+          # Cosmetic — hair, hats, clothing, accessories
+          tar czf dist-assets/lpc-assets-hair-clothes.tar.gz \
+            spritesheets/hair/ spritesheets/hat/ spritesheets/beards/ spritesheets/facial/ \
+            spritesheets/cape/ spritesheets/dress/ spritesheets/neck/ spritesheets/backpack/
 
-          # Cosmetic — hair, hats, clothing, accessories (~469 MB)
-          tar czf ../dist-assets/lpc-assets-hair-clothes.tar.gz \
-            hair/ hat/ beards/ facial/ cape/ dress/ neck/ backpack/
-
-          # Miscellaneous — tools, quiver (~2 MB)
-          tar czf ../dist-assets/lpc-assets-misc.tar.gz \
-            tools/ quiver/
-
-          cd ..
+          # Miscellaneous — tools, quiver
+          tar czf dist-assets/lpc-assets-misc.tar.gz \
+            spritesheets/tools/ spritesheets/quiver/
 
       - name: Generate manifest
         run: |

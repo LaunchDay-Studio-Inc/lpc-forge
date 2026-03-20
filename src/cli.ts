@@ -38,11 +38,11 @@ const SKIN_ALIASES: Record<string, string> = {
 
 program
   .command('character')
-  .description('Generate a character spritesheet\n\n  Available presets: warrior, mage, rogue, ranger, villager, paladin, necromancer,\n  knight, barbarian, monk, thief, healer, archer, merchant, guard, skeleton, peasant\n\n  Layer syntax: --hair <style>:<color>  e.g. "plain:brown", "ponytail:blonde"\n               --armor <type>:<variant> e.g. "plate:steel", "leather:brown"\n               --weapon <type>:<variant> e.g. "sword_longsword:longsword"')
+  .description('Generate a character spritesheet\n\n  Available presets: warrior, mage, rogue, ranger, villager, paladin, necromancer,\n  knight, barbarian, monk, thief, healer, archer, merchant, guard, skeleton, peasant\n\n  Layer syntax: --hair <style>:<color>  e.g. "plain:dark brown", "ponytail:blonde"\n               --armor <type>:<variant> e.g. "plate:steel", "leather:brown"\n               --weapon <type>:<variant> e.g. "sword_longsword:longsword"')
   .option('-p, --preset <name>', 'Use a preset (warrior, mage, rogue, ranger, villager, ...)')
   .option('-b, --body <type>', 'Body type (male, female, muscular, teen, child, pregnant)', 'male')
   .option('--skin <variant>', 'Skin color variant (light, amber, olive, taupe, bronze, brown, black, ...)', 'light')
-  .option('--hair <style:color>', 'Hair style and color (e.g., "plain:brown", "ponytail:blonde")')
+  .option('--hair <style:color>', 'Hair style and color (e.g., "plain:dark brown", "ponytail:blonde")')
   .option('--armor <type:variant>', 'Armor type and variant (e.g., "plate:steel")')
   .option('--weapon <type:variant>', 'Weapon type and variant (e.g., "sword_longsword:longsword")')
   .option('-o, --output <path>', 'Output path', './output/character')
@@ -99,7 +99,7 @@ program
         if (opts.hair) {
           const [style, color] = opts.hair.split(':');
           const resolvedStyle = HAIR_ALIASES[style] ?? `hair_${style}`;
-          layers.push({ category: 'hair', subcategory: resolvedStyle, variant: color || 'brown' });
+          layers.push({ category: 'hair', subcategory: resolvedStyle, variant: color || 'dark brown' });
         }
 
         if (opts.armor) {

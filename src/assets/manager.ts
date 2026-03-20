@@ -459,6 +459,20 @@ export async function downloadAssets(options: DownloadOptions = {}): Promise<voi
     downloadedChunks.push(chunk.name);
   }
 
+  // Verify expected directory structure exists after extraction
+  const hasSpritesheets = existsSync(join(assetDir, 'spritesheets'));
+  const hasDefinitions = existsSync(join(assetDir, 'sheet_definitions'));
+  if (!hasSpritesheets || !hasDefinitions) {
+    // Clean up and throw — don't leave a broken install
+    await rm(join(assetDir, LOCAL_MANIFEST), { force: true });
+    throw new Error(
+      'Asset extraction completed but expected directories are missing.\n' +
+      `  Expected: ${join(assetDir, 'spritesheets/')} and ${join(assetDir, 'sheet_definitions/')}\n` +
+      '  This indicates a packaging issue. Please report at:\n' +
+      '  https://github.com/LaunchDay-Studio-Inc/lpc-forge/issues'
+    );
+  }
+
   // 4. Write local manifest
   const localManifest: LocalManifest = {
     version: manifest.version,

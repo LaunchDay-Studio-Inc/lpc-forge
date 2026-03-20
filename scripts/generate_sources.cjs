@@ -5,7 +5,7 @@ const SHEETS_DIR = "sheet_definitions" + path.sep;
 const DEBUG = false; // change this to print debug log
 const onlyIfTemplate = false; // print debugging log only if there is a template
 
-require("child_process").fork("scripts/zPositioning/parse_zpos.js");
+require("child_process").fork("scripts/zPositioning/parse_zpos.cjs");
 
 // Collect metadata for runtime use
 const licensesFound = [];
